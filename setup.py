@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-with open("draken/version.py", "r") as v:
+with open("draken/__version__.py", "r") as v:
     vers = v.read()
 exec(vers)  # nosec
 
@@ -21,7 +21,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     maintainer="Joocer",
-    author="joocer",
+    author=__author__,
     author_email="justin.joyce@joocer.com",
     packages=find_packages(include=["draken", "draken.*"]),
     url="https://github.com/mabel-dev/draken/",
