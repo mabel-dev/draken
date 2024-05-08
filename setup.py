@@ -1,6 +1,10 @@
 from setuptools import find_packages, setup
 
-with open("draken/__version__.py", "r") as v:
+LIBRARY = "draken"
+
+__author__ = "notset"
+__version__ = "notset"
+with open(f"{LIBRARY}/__version__.py", mode="r") as v:
     vers = v.read()
 exec(vers)  # nosec
 
@@ -15,15 +19,15 @@ except:
         required = f.read().splitlines()
 
 setup(
-    name="draken",
+    name=LIBRARY,
     version=__version__,
     description="External Index",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    maintainer="Joocer",
+    maintainer="@joocer",
     author=__author__,
     author_email="justin.joyce@joocer.com",
-    packages=find_packages(include=["draken", "draken.*"]),
-    url="https://github.com/mabel-dev/draken/",
+    packages=find_packages(include=[LIBRARY, f"{LIBRARY}.*"]),
+    url=f"https://github.com/mabel-dev/{LIBRARY}/",
     install_requires=required,
 )
