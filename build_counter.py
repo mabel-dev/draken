@@ -15,7 +15,7 @@ if build_number:
         f.write("\n".join(contents) + "\n")
 
 __version__ = "notset"
-with open(f"draken/__version__.py", mode="r") as v:
+with open("draken/__version__.py", mode="r") as v:
     vers = v.read()
 exec(vers)  # nosec
 print(__version__)

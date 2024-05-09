@@ -1,0 +1,78 @@
+import os
+import json
+from typing import List, Dict, Tuple
+from threading import Lock
+from collections import defaultdict
+
+class IndexManager:
+    def __init__(self, storage_path: str):
+        self.storage_path = storage_path
+        self.memtable = {}
+        self.sstables = []
+        self.wal_path = os.path.join(storage_path, "wal.log")
+        self.index_metadata_path = os.path.join(storage_path, "index_metadata.json")
+        self.lock = Lock()
+        self.load_metadata()
+
+    def load_metadata(self):
+        if os.path.exists(self.index_metadata_path):
+            with open(self.index_metadata_path, 'r') as f:
+                metadata = json.load(f)
+                self.sstables = metadata.get('sstables', [])
+        else:
+            self.sstables = []
+
+    def save_metadata(self):
+        with open(self.index_metadata_path, 'w') as f:
+            metadata = {'sstables': self.sstables}
+            json.dump(metadata, f)
+
+    def create_index(self, dataset_name: str, index_name: str, indexed_columns: List[str]):
+        # Initialize index structures, potentially based on dataset schema
+        pass
+
+    def refresh_index(self):
+        with self.lock:
+            self.flush_memtable_to_sstable()
+            self.compact_sstables()
+
+    def flush_memtable_to_sstable(self):
+        if not self.memtable:
+            return
+        sstable_path = os.path.join(self.storage_path, f"sstable_{len(self.sstables)}.sst")
+        with open(sstable_path, 'w') as f:
+            json.dump(self.memtable, f)
+        self.sstables.append(sstable_path)
+        self.memtable = {}
+        self.save_metadata()
+
+    def compact_sstables(self):
+        # Logic to merge and compact SSTables
+        pass
+
+    def query_index(self, index_name: str, query_conditions: Dict[str, any]) -> List[Tuple[str, List[int]]]:
+        results = defaultdict(list)
+        with self.lock:
+            for sstable in self.sstables:
+                with open(sstable, 'r') as f:
+                    sstable_data = json.load(f)
+                    for key, value in sstable_data.items():
+                        if all(query_conditions.get(k) == v for k, v in key.items()):
+                            results[value[0]].extend(value[1])
+        return list(results.items())
+
+    def track_non_indexed_files(self, file_id: str):
+        with open(self.index_metadata_path, 'a') as f:
+            f.write(f"{file_id}\n")
+
+    def get_non_indexed_files(self) -> List[str]:
+        if not os.path.exists(self.index_metadata_path):
+            return []
+        with open(self.index_metadata_path, 'r') as f:
+            return [line.strip() for line in f.readlines()]
+
+# Example Usage
+index_manager = IndexManager("/path/to/storage")
+index_manager.create_index("dataset", "index_name", ["column1", "column2"])
+index_manager.refresh_index()
+print(index_manager.query_index("index_name", {"column1": "value"}))
