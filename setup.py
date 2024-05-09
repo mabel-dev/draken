@@ -3,10 +3,10 @@ from setuptools import find_packages, setup
 LIBRARY = "draken"
 
 __author__ = "notset"
-__version__ = "notset"
-with open(f"{LIBRARY}/__version__.py", mode="r") as v:
-    vers = v.read()
-exec(vers)  # nosec
+__version__ = "0.0.0"
+#with open(f"{LIBRARY}/__version__.py", mode="r") as v:
+#    vers = v.read()
+#exec(vers)  # nosec
 
 with open("README.md", "r") as rm:
     long_description = rm.read()
