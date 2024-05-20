@@ -1,1 +1,3 @@
 fastapi
+ormsgpack
+orso

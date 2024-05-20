@@ -1,12 +1,28 @@
-from setuptools import find_packages, setup
+import platform
+
+from Cython.Build import cythonize
+from setuptools import Extension
+from setuptools import find_packages
+from setuptools import setup
 
 LIBRARY = "draken"
 
 __author__ = "notset"
 __version__ = "0.0.0"
-#with open(f"{LIBRARY}/__version__.py", mode="r") as v:
-#    vers = v.read()
-#exec(vers)  # nosec
+with open(f"{LIBRARY}/__version__.py", mode="r") as v:
+    vers = v.read()
+# xec(vers)  # nosec
+
+
+def is_mac():  # pragma: no cover
+    return platform.system().lower() == "darwin"
+
+
+if is_mac():
+    COMPILE_FLAGS = ["-O2"]
+else:
+    COMPILE_FLAGS = ["-O2", "-march=native"]
+
 
 with open("README.md", "r") as rm:
     long_description = rm.read()
@@ -18,16 +34,42 @@ except:
     with open("draken.egg-info/requires.txt", "r") as f:
         required = f.read().splitlines()
 
-setup(
-    name=LIBRARY,
-    version=__version__,
-    description="External Index",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    maintainer="@joocer",
-    author=__author__,
-    author_email="justin.joyce@joocer.com",
-    packages=find_packages(include=[LIBRARY, f"{LIBRARY}.*"]),
-    url=f"https://github.com/mabel-dev/{LIBRARY}/",
-    install_requires=required,
-)
+extensions = [
+    Extension(
+        name="draken.compiled.hadro",
+        sources=["draken/compiled/hadro.pyx"],
+        extra_compile_args=COMPILE_FLAGS,
+    ),
+    Extension(
+        name="draken.compiled.binary_search",
+        sources=["draken/compiled/binary_search.pyx"],
+        extra_compile_args=COMPILE_FLAGS,
+    ),
+    Extension(
+        name="draken.compiled.bloom_filter",
+        sources=["draken/compiled/bloom_filter.pyx"],
+        language="c++",
+        extra_compile_args=COMPILE_FLAGS,
+    ),
+]
+
+setup_config = {
+    "name": LIBRARY,
+    "version": __version__,
+    "description": "Draken - External Indexes",
+    "long_description": long_description,
+    "long_description_content_type": "text/markdown",
+    "maintainer": "@joocer",
+    "author": __author__,
+    "author_email": "justin.joyce@joocer.com",
+    "packages": find_packages(include=[LIBRARY, f"{LIBRARY}.*"]),
+    "python_requires": ">=3.9",
+    "url": "https://github.com/mabel-dev/{LIBRARY}/",
+    "install_requires": required,
+    "ext_modules": cythonize(extensions),
+    "package_data": {
+        "": ["*.pyx", "*.pxd"],
+    },
+}
+
+setup(**setup_config)
