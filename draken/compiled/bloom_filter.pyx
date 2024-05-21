@@ -5,7 +5,7 @@
 
 """
 This is not a general perpose Bloom Filter, if used outside of Draken, it may not
-perform entirely as expected.
+perform entirely as expected as it is optimized for a specific configuration. 
 """
 
 from libc.stdlib cimport malloc, free
@@ -14,9 +14,9 @@ from cpython cimport PyUnicode_AsUTF8String
 
 from .murmurhash3_32 cimport cy_murmurhash3
 
-# Define constants for the fixed size
-BIT_ARRAY_SIZE = 64 * 1024  # 64 KB = 512 Kbits
-BYTE_ARRAY_SIZE = BIT_ARRAY_SIZE // 8
+cdef uint32_t BYTE_ARRAY_SIZE = 64 * 1024  # 64 KB
+cdef uint32_t BIT_ARRAY_SIZE = BYTE_ARRAY_SIZE << 3 # 512 Kbits
+
 
 cdef class BloomFilter:
 #    cdef unsigned char* bit_array  # defined in the .pxd file only
@@ -32,23 +32,25 @@ cdef class BloomFilter:
         if self.bit_array:
             free(self.bit_array)
 
-    cpdef void add(self, long item):
+    cpdef void add(self, bytes member):
         """Add an item to the Bloom filter"""
+        item = cy_murmurhash3(<char*>member, len(member), 0)
         h1 = item % BIT_ARRAY_SIZE
         # Apply the golden ratio to the item and use modulo to wrap within the size of the bit array
-        h2 = <long>(item * 1.618033988749895) % BIT_ARRAY_SIZE
+        h2 = <long>(item * 1.618033988) % BIT_ARRAY_SIZE  # 1.618033988749895
         # Set bits using bitwise OR
-        self.bit_array[h1 // 8] |= 1 << (h1 % 8)
-        self.bit_array[h2 // 8] |= 1 << (h2 % 8)
+        self.bit_array[h1 >> 3] |= 1 << (h1 % 8)
+        self.bit_array[h2 >> 3] |= 1 << (h2 % 8)
 
-    cpdef int possibly_contains(self, long item):
+    cpdef int possibly_contains(self, bytes member):
         """Check if the item might be in the set"""
+        item = cy_murmurhash3(<char*>member, len(member), 0)
         h1 = item % BIT_ARRAY_SIZE
         # Apply the golden ratio to the item and use modulo to wrap within the size of the bit array
-        h2 = <long>(item * 1.618033988749895) % BIT_ARRAY_SIZE
+        h2 = <long>(item * 1.618033988) % BIT_ARRAY_SIZE
         # Check bits using bitwise AND
-        return (self.bit_array[h1 // 8] & (1 << (h1 % 8))) and \
-               (self.bit_array[h2 // 8] & (1 << (h2 % 8)))
+        return (self.bit_array[h1 >> 3] & (1 << (h1 % 8))) and \
+               (self.bit_array[h2 >> 3] & (1 << (h2 % 8)))
 
     cpdef memoryview serialize(self):
         """Serialize the Bloom filter to a memory view"""
@@ -63,10 +65,7 @@ cpdef BloomFilter deserialize(const unsigned char* data):
 
 cpdef create_bloom_filter(list keys):
     cdef bytes key_bytes
-    cdef int key_len
     bf = BloomFilter()
     for key_bytes in keys:
-        key_len = len(key_bytes)  # Length of the key
-        hashed_key = cy_murmurhash3(<const void*>key_bytes, key_len, 703115)
-        bf.add(hashed_key)
+        bf.add(key_bytes)
     return bf

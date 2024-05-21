@@ -3,15 +3,14 @@
 # cython: wraparound=False
 # distutils: language=c++
 
-BIT_ARRAY_SIZE = 64 * 1024  # 64 KB = 512 Kbits
-BYTE_ARRAY_SIZE = BIT_ARRAY_SIZE // 8
+from libc.stdint cimport uint32_t
 
 # Declaration of the BloomFilter class
 cdef class BloomFilter:
     cdef unsigned char* bit_array
 
-    cpdef void add(self, long item)
-    cpdef int possibly_contains(self, long item)
+    cpdef void add(self, bytes member)
+    cpdef int possibly_contains(self, bytes member)
     cpdef memoryview serialize(self)
 
 cpdef BloomFilter deserialize(const unsigned char* data)

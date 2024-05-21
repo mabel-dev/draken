@@ -10,7 +10,7 @@ from libc.stdint cimport uint32_t, int64_t
 from cpython cimport PyUnicode_AsUTF8String
 
 # MurmurHash3 implementation
-cdef inline uint32_t cy_murmurhash3(const void *key, uint32_t len, uint32_t seed):
+cdef inline uint32_t cy_murmurhash3(const void *key, uint32_t len, uint32_t seed) nogil:
     cdef uint32_t c1 = 0xcc9e2d51
     cdef uint32_t c2 = 0x1b873593
     cdef uint32_t r1 = 15
