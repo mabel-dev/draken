@@ -1,6 +1,8 @@
 # cython: language_level=3
 # cython: boundscheck=False
 # cython: wraparound=False
+# distutils: language=c++
+
 """
 This is not a general perpose Bloom Filter, if used outside of Draken, it may not
 perform entirely as expected.
@@ -8,13 +10,16 @@ perform entirely as expected.
 
 from libc.stdlib cimport malloc, free
 from libc.string cimport memset, memcpy
+from cpython cimport PyUnicode_AsUTF8String
+
+from .murmurhash3_32 cimport cy_murmurhash3
 
 # Define constants for the fixed size
 BIT_ARRAY_SIZE = 64 * 1024  # 64 KB = 512 Kbits
 BYTE_ARRAY_SIZE = BIT_ARRAY_SIZE // 8
 
 cdef class BloomFilter:
-    cdef unsigned char* bit_array
+#    cdef unsigned char* bit_array  # defined in the .pxd file only
 
     def __cinit__(self):
         # Allocate memory for the bit array and initialize to 0
@@ -53,4 +58,15 @@ cpdef BloomFilter deserialize(const unsigned char* data):
     """Deserialize a memory view to a Bloom filter"""
     bf = BloomFilter()
     memcpy(bf.bit_array, data, BYTE_ARRAY_SIZE)
+    return bf
+
+
+cpdef create_bloom_filter(list keys):
+    cdef bytes key_bytes
+    cdef int key_len
+    bf = BloomFilter()
+    for key_bytes in keys:
+        key_len = len(key_bytes)  # Length of the key
+        hashed_key = cy_murmurhash3(<const void*>key_bytes, key_len, 703115)
+        bf.add(hashed_key)
     return bf
