@@ -36,13 +36,9 @@ except:
 
 extensions = [
     Extension(
-        name="draken.compiled.hadro",
-        sources=["draken/compiled/hadro.pyx"],
-        extra_compile_args=COMPILE_FLAGS,
-    ),
-    Extension(
-        name="draken.compiled.binary_search",
-        sources=["draken/compiled/binary_search.pyx"],
+        name="draken.compiled.murmurhash3_32",
+        sources=["draken/compiled/murmurhash3_32.pyx"],
+        language="c++",
         extra_compile_args=COMPILE_FLAGS,
     ),
     Extension(
@@ -50,6 +46,12 @@ extensions = [
         sources=["draken/compiled/bloom_filter.pyx"],
         language="c++",
         extra_compile_args=COMPILE_FLAGS,
+    ),
+    Extension(
+        name="draken.compiled.sstable",
+        sources=["draken/compiled/sstable.pyx"],
+        extra_compile_args=COMPILE_FLAGS,
+        include_dirs=["."],
     ),
 ]
 

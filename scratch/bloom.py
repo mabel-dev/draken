@@ -21,8 +21,7 @@ for rec in data.keys():
     bf.add(hash(rec))
 
 ser = bf.serialize()
-print(bytes(ser))
-de = deserialize(ser)
+de = deserialize(bytes(ser))
 
 print(de.possibly_contains(hash("term2")))
 print(de.possibly_contains(hash("term9")))
