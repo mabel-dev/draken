@@ -65,9 +65,6 @@ Supporting Classes:
     - An inlinable version of the MurmurHash3 algorithm used for hashing keys in the Bloom filter.
 """
 
-
-
-
 from libc.stdint cimport uint8_t
 from libc.stdint cimport uint32_t
 from libc.stdint cimport uint64_t
@@ -77,6 +74,7 @@ import zlib
 import time
 import zstd
 import ormsgpack
+import numpy
 from cpython cimport PyUnicode_AsUTF8String
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from hashlib import sha256
@@ -186,21 +184,34 @@ cdef class DataEntry:
     cdef uint32_t data_length
     cdef public bytes data
 
-    def __init__(self, data: bytes):
-        self.data = data
+    def __init__(self, data: Union[bytes, memoryview]):
+        self.data = bytes(data)
         self.data_length = len(self.data)
 
     def serialize(self) -> bytes:
         return struct.pack('<I', self.data_length) + self.data
 
     @staticmethod
-    def deserialize(data: bytes):
-        data_length, = struct.unpack('<I', data[:4])
+    def deserialize(data: Union[bytes, memoryview]):
+        """
+        Deserialize the given data into a DataEntry object.
+
+        Parameters:
+            data (bytes or memoryview): The data to deserialize.
+
+        Returns:
+            DataEntry: The deserialized DataEntry object.
+        """
+        # Directly convert the first 4 bytes to an integer
+        data_length = int.from_bytes(data[:4], 'little')
         raw_data = data[4:4 + data_length]
         return DataEntry(raw_data)
 
 
 def serialize_schema(schema: dict) -> bytes:
+    """
+    We store the schema as a JSON document.
+    """
     import orjson
     schema_json = orjson.dumps(schema)
     return schema_json
@@ -208,6 +219,14 @@ def serialize_schema(schema: dict) -> bytes:
 def deserialize_schema(schema_bytes: bytes) -> dict:
     import orjson
     return orjson.loads(schema_bytes)
+
+def default_serializer(obj):
+    """
+    Types orjson doesn't know how to serialize but we want to support.
+    """
+    if isinstance(obj, numpy.ndarray):
+        return obj.tolist()
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 def create_sstable(dict data, dict schema, uint8_t format_flags) -> bytes:
 
@@ -237,10 +256,11 @@ def create_sstable(dict data, dict schema, uint8_t format_flags) -> bytes:
     
     for key in sorted_keys:
         value = byte_keys_data[key]
+
         key_bytes = key if isinstance(key, bytes) else key.encode('utf-8')
         
         # Create Data Entry
-        data_entry = DataEntry(ormsgpack.packb(value))
+        data_entry = DataEntry(ormsgpack.packb(value, option=ormsgpack.OPT_SERIALIZE_NUMPY, default=default_serializer))
         data_entries.append(data_entry)
         
         # Create Key Entry
@@ -260,8 +280,8 @@ def create_sstable(dict data, dict schema, uint8_t format_flags) -> bytes:
     key_block_bytes = zstd.compress(raw_key_block_bytes)
     data_block_bytes = zstd.compress(raw_data_block_bytes)
 
-#    print("pre", len(raw_key_block_bytes), "post", len(key_block_bytes))
-#    print("pre", len(raw_data_block_bytes), "post", len(data_block_bytes))
+    print("pre", len(raw_key_block_bytes), "post", len(key_block_bytes))
+    print("pre", len(raw_data_block_bytes), "post", len(data_block_bytes))
 
     # Set offsets in header
     header.schema_offset = len(header.serialize())
@@ -275,6 +295,56 @@ def create_sstable(dict data, dict schema, uint8_t format_flags) -> bytes:
     # Construct SSTable
     sstable_bytes = header.serialize() + schema_bytes + bloom_filter_bytes + key_block_bytes + data_block_bytes
     return sstable_bytes
+
+
+
+cpdef list load_sst(bytes sstable):
+    """
+    Parameters:
+    sstable (bytes): The serialized SSTable containing the header, schema, 
+                     Bloom filter, key block, and compressed data block.
+
+    Returns:
+    list: The decompressed data block entries.
+    """
+    # Deserialize header
+    cdef Header header
+    cdef bytes header_data = sstable[:HEADER_SIZE]
+    header = Header.deserialize(header_data)
+    
+    # Locate the blocks using memoryview for efficiency
+    cdef uint32_t key_block_start = header.key_block_offset
+    cdef uint32_t key_block_end = header.data_block_offset
+    cdef bytes compressed_key_block = sstable[key_block_start:key_block_end]
+    cdef memoryview key_block = memoryview(zstd.decompress(compressed_key_block))
+
+    cdef uint32_t data_block_start = header.data_block_offset
+    cdef bytes compressed_data_block = sstable[data_block_start:]
+    cdef memoryview data_block = memoryview(zstd.decompress(compressed_data_block))
+    
+    cdef memoryview key_entry_data
+    cdef KeyEntry key_entry
+    cdef DataEntry data_entry
+    cdef int offset = 0
+    cdef int data_offset
+    cdef list values = [dict()] * header.num_keys
+    cdef int index = 0
+
+    while offset < key_block.shape[0]:
+        key_entry_data = key_block[offset:offset + KEY_ENTRY_SIZE]
+        key_entry = KeyEntry.deserialize(key_entry_data)
+
+        data_offset = key_entry.data_block_offset
+        data_entry_data = data_block[data_offset:]
+        data_entry = DataEntry.deserialize(data_entry_data)
+
+        values[index] = ormsgpack.unpackb(data_entry.data)
+        index += 1
+
+        offset += KEY_ENTRY_SIZE
+
+    return values
+
 
 
 cpdef list match_equals(bytes sstable, object value):
