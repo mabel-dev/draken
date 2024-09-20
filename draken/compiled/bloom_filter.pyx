@@ -6,6 +6,10 @@
 """
 This is not a general perpose Bloom Filter, if used outside of Draken, it may not
 perform entirely as expected as it is optimized for a specific configuration. 
+
+We use 64kb to create a 512k slot bit array. We then use one hash to create two positions using the golden ratio.
+
+On 50k items, we get approximately 3% FP rate.
 """
 
 from libc.stdlib cimport malloc, free
