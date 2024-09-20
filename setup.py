@@ -53,6 +53,12 @@ extensions = [
         extra_compile_args=COMPILE_FLAGS,
         include_dirs=["."],
     ),
+    Extension(
+        name="draken.compiled.accumulation_tree",
+        sources=["draken/compiled/accumulation_tree.pyx"],
+        extra_compile_args=COMPILE_FLAGS,
+        include_dirs=["."],
+    ),
 ]
 
 setup_config = {

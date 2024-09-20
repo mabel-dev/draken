@@ -1,6 +1,6 @@
 # Draken
 
-External Index for Opteryx.
+External Indexes for Opteryx.
 
 ## Index Types
 
