@@ -4,7 +4,6 @@
 # cython: nonecheck=False
 # cython: overflowcheck=False
 # cython: cdivision=True
-# distutils: language=c++
 
 from libc.stdint cimport uint32_t, int64_t
 from cpython cimport PyUnicode_AsUTF8String

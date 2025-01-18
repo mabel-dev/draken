@@ -8,13 +8,14 @@ import datetime
 from dataclasses import dataclass
 from typing import Any
 from typing import BinaryIO
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
-from typing import Union, Dict
+from typing import Union
 
-from orso.schema import RelationSchema
 import orso
+from orso.schema import RelationSchema
 
 
 @dataclass
@@ -30,7 +31,6 @@ def DrakenMetadata():
 
 
 def DrakenTable():
-
     @property
     def metadata(self):
         pass
@@ -47,11 +47,12 @@ def DrakenTable():
     def orso(self) -> orso.DataFrame:
         pass
 
+
 def read_table(
     self,
     filelike: Union[str, bytes, memoryview, BinaryIO],
     columns: Optional[List[str]] = None,
     filter: Optional[Union[Tuple[str, str, Any], List[Tuple]]] = None,
-    offsets: Optional[List[int]] = None
+    offsets: Optional[List[int]] = None,
 ) -> DrakenTable:
     pass

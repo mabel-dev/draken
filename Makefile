@@ -1,13 +1,16 @@
 lint:
-	#python -m pip install --quiet --upgrade pycln isort black yamllint
-	# python -m yamllint .
+	python -m pip install --quiet --upgrade pycln isort ruff yamllint cython-lint
+#	python -m yamllint .
+	cython-lint opteryx/compiled/**/*.pyx
+	python -m ruff check --fix --exit-zero
 	python -m pycln .
 	python -m isort .
-	python -m black .
+	python -m ruff format draken
 
 update:
-	python -m pip install --quiet --upgrade -r requirements.txt
-	python -m pip install --quiet --upgrade -r tests/requirements.txt
+	python -m pip install --upgrade pip uv
+	python -m uv pip install --upgrade -r tests/requirements.txt
+	python -m uv pip install --upgrade -r requirements.txt
 
 test:
 	#python -m pip install --quiet --upgrade pytest coverage
@@ -19,4 +22,7 @@ ci:
 	python -m mypy --ignore-missing-imports --python-version 3.10 --no-strict-optional --check-untyped-defs orso
 
 compile:
+	clear
+	find . -name '*.so' -delete
+	python setup.py clean
 	python setup.py build_ext --inplace

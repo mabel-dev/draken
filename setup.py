@@ -4,6 +4,7 @@ from Cython.Build import cythonize
 from setuptools import Extension
 from setuptools import find_packages
 from setuptools import setup
+import numpy
 
 LIBRARY = "draken"
 
@@ -38,20 +39,19 @@ extensions = [
     Extension(
         name="draken.compiled.murmurhash3_32",
         sources=["draken/compiled/murmurhash3_32.pyx"],
-        language="c++",
         extra_compile_args=COMPILE_FLAGS,
     ),
     Extension(
         name="draken.compiled.bloom_filter",
         sources=["draken/compiled/bloom_filter.pyx"],
-        language="c++",
+        include_dirs=[numpy.get_include()],
         extra_compile_args=COMPILE_FLAGS,
     ),
     Extension(
         name="draken.compiled.sstable",
         sources=["draken/compiled/sstable.pyx"],
         extra_compile_args=COMPILE_FLAGS,
-        include_dirs=["."],
+        include_dirs=[".", numpy.get_include()],
     ),
     Extension(
         name="draken.compiled.accumulation_tree",
