@@ -1,5 +1,0 @@
-cython
-fastapi
-ormsgpack
-orso
-zstd
