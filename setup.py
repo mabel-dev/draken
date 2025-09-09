@@ -1,70 +1,117 @@
+import os
 import platform
+from distutils.sysconfig import get_config_var
 
+import numpy
 from Cython.Build import cythonize
 from setuptools import Extension
 from setuptools import find_packages
 from setuptools import setup
-
-LIBRARY = "draken"
-
-__author__ = "notset"
-__version__ = "0.0.0"
-with open(f"{LIBRARY}/__version__.py", mode="r") as v:
-    vers = v.read()
-# xec(vers)  # nosec
 
 
 def is_mac():  # pragma: no cover
     return platform.system().lower() == "darwin"
 
 
+def is_win():  # pragma: no cover
+    return platform.system().lower() == "windows"
+
+
+LIBRARY = "draken"
+CPP_COMPILE_FLAGS = ["-O3"]
+C_COMPILE_FLAGS = ["-O3"]
 if is_mac():
-    COMPILE_FLAGS = ["-O2"]
+    CPP_COMPILE_FLAGS += ["-std=c++17"]
+elif is_win():
+    CPP_COMPILE_FLAGS += ["/std:c++17"]
 else:
-    COMPILE_FLAGS = ["-O2", "-march=native"]
+    CPP_COMPILE_FLAGS += ["-std=c++17", "-march=native", "-fvisibility=default"]
+    C_COMPILE_FLAGS += ["-march=native", "-fvisibility=default"]
+
+include_dirs = []
+# Get the C++ include directory
+includedir = get_config_var("INCLUDEDIR")
+if includedir:
+    include_dirs.append(os.path.join(includedir, "c++", "v1"))
+
+# Get the Python include directory
+includepy = get_config_var("INCLUDEPY")
+if includepy:
+    include_dirs.append(includepy)
+
+# Check if paths exist
+include_dirs = [p for p in include_dirs if os.path.exists(p)]
+
+print("\033[38;2;255;85;85mInclude paths:\033[0m", include_dirs)
 
 
-with open("README.md", "r") as rm:
+__author__ = "notset"
+__version__ = "notset"
+_status = None
+VersionStatus = None
+with open(f"{LIBRARY}/__version__.py", mode="r") as v:
+    vers = v.read()
+exec(vers)  # nosec
+
+RELEASE_CANDIDATE = _status == VersionStatus.RELEASE
+COMPILER_DIRECTIVES = {"language_level": "3"}
+COMPILER_DIRECTIVES["profile"] = not RELEASE_CANDIDATE
+COMPILER_DIRECTIVES["linetrace"] = not RELEASE_CANDIDATE
+
+print(f"\033[38;2;255;85;85mBuilding Opteryx version:\033[0m {__version__}")
+print(f"\033[38;2;255;85;85mStatus:\033[0m {_status}", "(rc)" if RELEASE_CANDIDATE else "")
+
+with open("README.md", mode="r", encoding="UTF8") as rm:
     long_description = rm.read()
 
 try:
     with open("requirements.txt", "r") as f:
         required = f.read().splitlines()
 except:
-    with open("draken.egg-info/requires.txt", "r") as f:
+    with open(f"{LIBRARY}.egg-info/requires.txt", "r") as f:
         required = f.read().splitlines()
 
 extensions = [
+
     Extension(
-        name="draken.compiled.murmurhash3_32",
-        sources=["draken/compiled/murmurhash3_32.pyx"],
-        language="c++",
-        extra_compile_args=COMPILE_FLAGS,
+        name="draken.src.draken_accessors",
+        sources=["draken/src/draken_accessors.pyx"],
+        extra_compile_args=C_COMPILE_FLAGS,
+        include_dirs=include_dirs + ["draken/src"],
+        depends=["draken/src/draken_columns.h"],
     ),
     Extension(
-        name="draken.compiled.bloom_filter",
-        sources=["draken/compiled/bloom_filter.pyx"],
-        language="c++",
-        extra_compile_args=COMPILE_FLAGS,
+        "draken.src.draken_arrow",
+        sources=["draken/src/draken_arrow.pyx"],
+        extra_compile_args=C_COMPILE_FLAGS,
+        include_dirs=include_dirs + ["draken/src"],
+        depends=[
+            "draken/src/draken_columns.h",
+            "draken/src/arrow_c_data_interface.h"
+        ],
     ),
     Extension(
-        name="draken.compiled.sstable",
-        sources=["draken/compiled/sstable.pyx"],
-        extra_compile_args=COMPILE_FLAGS,
-        include_dirs=["."],
-    ),
-    Extension(
-        name="draken.compiled.accumulation_tree",
-        sources=["draken/compiled/accumulation_tree.pyx"],
-        extra_compile_args=COMPILE_FLAGS,
-        include_dirs=["."],
+        name="draken.src.draken",
+        sources=["draken/src/draken.pyx"],
+        extra_compile_args=C_COMPILE_FLAGS,
+        include_dirs=include_dirs + ["draken/src"],
+        depends=["draken/src/draken_columns.h"],
     ),
 ]
+
+# Add SIMD support flags
+machine = platform.machine().lower()
+system = platform.system().lower()
+if machine.startswith("arm") and not machine.startswith("aarch64"):
+    if system != "darwin":
+        CPP_COMPILE_FLAGS.append("-mfpu=neon")
+elif "x86" in machine or "amd64" in machine:
+    CPP_COMPILE_FLAGS.append("-mavx2")
 
 setup_config = {
     "name": LIBRARY,
     "version": __version__,
-    "description": "Draken - External Indexes",
+    "description": "Cython compatibility layer for Arrow",
     "long_description": long_description,
     "long_description_content_type": "text/markdown",
     "maintainer": "@joocer",
@@ -72,12 +119,13 @@ setup_config = {
     "author_email": "justin.joyce@joocer.com",
     "packages": find_packages(include=[LIBRARY, f"{LIBRARY}.*"]),
     "python_requires": ">=3.9",
-    "url": "https://github.com/mabel-dev/{LIBRARY}/",
+    "url": "https://github.com/mabel-dev/draken/",
     "install_requires": required,
     "ext_modules": cythonize(extensions),
     "package_data": {
         "": ["*.pyx", "*.pxd"],
     },
+    "compiler_directives": COMPILER_DIRECTIVES,
 }
 
 setup(**setup_config)
