@@ -91,12 +91,20 @@ extensions = [
         ],
     ),
     Extension(
-        name="draken.src.draken",
-        sources=["draken/src/draken.pyx"],
+        name="draken.src.draken_fixed_width",
+        sources=["draken/src/draken_fixed_width.pyx"],
         extra_compile_args=C_COMPILE_FLAGS,
         include_dirs=include_dirs + ["draken/src"],
         depends=["draken/src/draken_columns.h"],
     ),
+    Extension(
+        name="draken.src.draken_variable_width",
+        sources=["draken/src/draken_variable_width.pyx"],
+        extra_compile_args=C_COMPILE_FLAGS,
+        include_dirs=include_dirs + ["draken/src"],
+        depends=["draken/src/draken_columns.h"],
+    ),
+
 ]
 
 # Add SIMD support flags
