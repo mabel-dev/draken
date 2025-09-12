@@ -4,11 +4,11 @@ from libc.stdlib cimport free
 from libc.stdint cimport int32_t, uint8_t, intptr_t
 from libc.stdlib cimport malloc, calloc
 
-from draken.src.draken_columns cimport DrakenVarColumn
-from draken.src.draken_columns cimport DRAKEN_STRING
+from draken.core.buffers cimport DrakenVarBuffer
+from draken.core.buffers cimport DRAKEN_STRING
 
-cdef DrakenVarColumn* alloc_var_column(size_t length, size_t data_capacity):
-    cdef DrakenVarColumn* col = <DrakenVarColumn*> malloc(sizeof(DrakenVarColumn))
+cdef DrakenVarBuffer* alloc_var_column(size_t length, size_t data_capacity):
+    cdef DrakenVarBuffer* col = <DrakenVarBuffer*> malloc(sizeof(DrakenVarBuffer))
     col.data = <uint8_t*> malloc(data_capacity)
     col.offsets = <int32_t*> calloc(length + 1, sizeof(int32_t))
     col.null_bitmap = NULL
@@ -16,11 +16,11 @@ cdef DrakenVarColumn* alloc_var_column(size_t length, size_t data_capacity):
     return col
 
 cpdef object py_alloc_var_column(size_t length, size_t data_capacity):
-    cdef DrakenVarColumn* col = alloc_var_column(length, data_capacity)
+    cdef DrakenVarBuffer* col = alloc_var_column(length, data_capacity)
     return <intptr_t>col
 
-cdef class VarColumn:
-    cdef DrakenVarColumn* ptr
+cdef class VarVector:
+    cdef DrakenVarBuffer* ptr
 
     def __cinit__(self, size_t length, size_t capacity):
         self.ptr = alloc_var_column(length, capacity)

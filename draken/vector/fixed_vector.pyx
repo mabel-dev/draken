@@ -8,15 +8,15 @@ from libc.stdint cimport int8_t, uint8_t, int32_t, int64_t, intptr_t
 from libc.stdlib cimport malloc, calloc
 from libc.string cimport memset
 
-from draken.src.draken_columns cimport DrakenFixedColumn
-from draken.src.draken_columns cimport DrakenType
-from draken.src.draken_columns cimport DRAKEN_INT64
-from draken.src.draken_columns cimport DRAKEN_FLOAT64
-from draken.src.draken_columns cimport DRAKEN_BOOL
-from draken.src.draken_columns cimport DRAKEN_STRING
+from draken.core.buffers cimport DrakenFixedBuffer
+from draken.core.buffers cimport DrakenType
+from draken.core.buffers cimport DRAKEN_INT64
+from draken.core.buffers cimport DRAKEN_FLOAT64
+from draken.core.buffers cimport DRAKEN_BOOL
+from draken.core.buffers cimport DRAKEN_STRING
 
-cdef DrakenFixedColumn* alloc_fixed_column(DrakenType dtype, size_t length):
-    cdef DrakenFixedColumn* col = <DrakenFixedColumn*> malloc(sizeof(DrakenFixedColumn))
+cdef DrakenFixedBuffer* alloc_fixed_column(DrakenType dtype, size_t length):
+    cdef DrakenFixedBuffer* col = <DrakenFixedBuffer*> malloc(sizeof(DrakenFixedBuffer))
     cdef size_t itemsize = 8 if dtype in [DRAKEN_INT64, DRAKEN_FLOAT64] else 1
     col.data = malloc(length * itemsize)
     col.null_bitmap = NULL
@@ -26,11 +26,11 @@ cdef DrakenFixedColumn* alloc_fixed_column(DrakenType dtype, size_t length):
     return col
 
 cpdef object py_alloc_fixed_column(int dtype, size_t length):
-    cdef DrakenFixedColumn* col = alloc_fixed_column(<DrakenType>dtype, length)
+    cdef DrakenFixedBuffer* col = alloc_fixed_column(<DrakenType>dtype, length)
     return <intptr_t>col
 
-cdef class FixedColumn:
-    cdef DrakenFixedColumn* ptr
+cdef class FixedVector:
+    cdef DrakenFixedBuffer* ptr
     cdef bint owns_data
 
     def __cinit__(self, int dtype, size_t length):
@@ -61,10 +61,10 @@ cdef class FixedColumn:
     cpdef intptr_t data_ptr(self):
         return <intptr_t>self.ptr.data
 
-    cpdef FixedColumn take(self, int32_t[::1] indices):
+    cpdef FixedVector take(self, int32_t[::1] indices):
         cdef:
             Py_ssize_t i, idx, n = len(indices)
-            FixedColumn out = FixedColumn(self.dtype, n)
+            FixedVector out = FixedVector(self.dtype, n)
             int64_t* src = <int64_t*>self.ptr.data
             int64_t* dst = <int64_t*>out.ptr.data
 
@@ -89,7 +89,7 @@ cdef class FixedColumn:
 
     def __str__(self):
         if self.ptr is NULL or self.ptr.data is NULL:
-            return "<FixedColumn NULL>"
+            return "<FixedVector NULL>"
         cdef int64_t* i64_ptr
         cdef double* f64_ptr
         cdef list values = []
@@ -99,26 +99,21 @@ cdef class FixedColumn:
             i64_ptr = <int64_t*>self.ptr.data
             for i in range(count):
                 values.append(i64_ptr[i])
-            return f"<FixedColumn[int64] len={self.ptr.length} values={values}>"
+            return f"<FixedVector[int64] len={self.ptr.length} values={values}>"
         elif self.ptr.type == DRAKEN_FLOAT64:
             f64_ptr = <double*>self.ptr.data
             for i in range(count):
                 values.append(f64_ptr[i])
-            return f"<FixedColumn[float64] len={self.ptr.length} values={values}>"
+            return f"<FixedVector[float64] len={self.ptr.length} values={values}>"
         else:
-            return f"<FixedColumn[type={self.ptr.type}] len={self.ptr.length}>"
+            return f"<FixedVector[type={self.ptr.type}] len={self.ptr.length}>"
 
 cpdef int INT64():
     return DRAKEN_INT64
 
-cpdef int FLOAT64():
-    return DRAKEN_FLOAT64
 
-cpdef int BOOL():
-    return DRAKEN_BOOL
-
-cpdef FixedColumn from_arrow_fixed(object array):
-    cdef FixedColumn col = FixedColumn(0, 0)
+cpdef FixedVector from_arrow_fixed(object array):
+    cdef FixedVector col = FixedVector(0, 0)
     cdef object buffers = array.buffers()
     cdef Py_ssize_t offset = array.offset
     cdef Py_ssize_t itemsize = 8
@@ -134,9 +129,9 @@ cpdef FixedColumn from_arrow_fixed(object array):
     col.owns_data = False
     return col
 
-cpdef int8_t[::1] compare(FixedColumn col, int64_t value):
+cpdef int8_t[::1] compare(FixedVector vec, int64_t value):
     cdef:
-        DrakenFixedColumn* ptr = (<FixedColumn>col).ptr
+        DrakenFixedBuffer* ptr = (<FixedVector>vec).ptr
         int64_t* data = <int64_t*>ptr.data
         Py_ssize_t i, n = ptr.length
         int8_t* result_buf = <int8_t*>malloc(n)
