@@ -1,10 +1,10 @@
 from libc.stdlib cimport malloc, free
 from libc.stdint cimport int64_t, uintptr_t
 
-from draken.src.draken_columns cimport DrakenFixedColumn
-from draken.src.arrow_c_data_interface cimport ArrowArray
-from draken.src.arrow_c_data_interface cimport ArrowSchema
-from draken.src.arrow_c_data_interface cimport ARROW_FLAG_NULLABLE
+from draken.core.buffers cimport DrakenFixedBuffer
+from draken.interop.arrow_c_data_interface cimport ArrowArray
+from draken.interop.arrow_c_data_interface cimport ArrowSchema
+from draken.interop.arrow_c_data_interface cimport ARROW_FLAG_NULLABLE
 
 
 cdef void release_arrow_array(ArrowArray* arr) noexcept:
@@ -15,7 +15,7 @@ cdef void release_arrow_schema(ArrowSchema* schema) noexcept:
     free(schema)
 
 cdef void expose_draken_fixed_as_arrow(
-    DrakenFixedColumn* col,
+    DrakenFixedBuffer* col,
     ArrowArray** out_array,
     ArrowSchema** out_schema,
 ):

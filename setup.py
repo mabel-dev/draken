@@ -74,29 +74,30 @@ except:
 extensions = [
 
     Extension(
-        name="draken.src.draken_accessors",
-        sources=["draken/src/draken_accessors.pyx"],
+        "draken.interop.arrow",
+        sources=["draken/interop/arrow.pyx"],
         extra_compile_args=C_COMPILE_FLAGS,
-        include_dirs=include_dirs + ["draken/src"],
-        depends=["draken/src/draken_columns.h"],
-    ),
-    Extension(
-        "draken.src.draken_arrow",
-        sources=["draken/src/draken_arrow.pyx"],
-        extra_compile_args=C_COMPILE_FLAGS,
-        include_dirs=include_dirs + ["draken/src"],
+        include_dirs=include_dirs + ["draken"],
         depends=[
-            "draken/src/draken_columns.h",
-            "draken/src/arrow_c_data_interface.h"
+            "draken/core/buffers.h",
+            "draken/interop/arrow_c_data_interface.h"
         ],
     ),
     Extension(
-        name="draken.src.draken",
-        sources=["draken/src/draken.pyx"],
+        name="draken.vector.fixed_vector",
+        sources=["draken/vector/fixed_vector.pyx"],
         extra_compile_args=C_COMPILE_FLAGS,
-        include_dirs=include_dirs + ["draken/src"],
-        depends=["draken/src/draken_columns.h"],
+        include_dirs=include_dirs + ["draken"],
+        depends=["draken/core/buffers.h"],
     ),
+    Extension(
+        name="draken.vector.var_vector",
+        sources=["draken/vector/var_vector.pyx"],
+        extra_compile_args=C_COMPILE_FLAGS,
+        include_dirs=include_dirs + ["draken"],
+        depends=["draken/core/buffers.h"],
+    ),
+
 ]
 
 # Add SIMD support flags
