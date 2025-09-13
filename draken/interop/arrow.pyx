@@ -6,6 +6,17 @@
 # cython: wraparound=False
 # cython: boundscheck=False
 
+"""
+Arrow interoperability helpers for Draken columnar buffers.
+
+This module provides:
+- Functions to expose DrakenFixedBuffer as ArrowArray and ArrowSchema
+- Memory management utilities for Arrow C Data Interface structs
+- Conversion helpers for zero-copy Arrow integration
+
+Used to enable efficient interchange between Draken and Apache Arrow for analytics and data science workflows.
+"""
+
 import pyarrow
 
 from libc.stdlib cimport free

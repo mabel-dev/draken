@@ -6,6 +6,18 @@
 # cython: wraparound=False
 # cython: boundscheck=False
 
+"""
+Int64Vector: Cython implementation of a fixed-width int64 column vector for Draken.
+
+This module provides:
+- The Int64Vector class for efficient int64 column storage and manipulation
+- Integration with DrakenFixedBuffer and related C helpers for memory management
+- Arrow interoperability for zero-copy conversion
+- Fast hashing, comparison, and null handling for int64 columns
+
+Used for high-performance analytics and columnar data processing in Draken.
+"""
+
 import ctypes
 import pyarrow
 
@@ -15,6 +27,7 @@ from libc.stdint cimport int32_t
 from libc.stdint cimport int64_t
 from libc.stdint cimport int8_t
 from libc.stdint cimport intptr_t
+from libc.stdint cimport uint64_t
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc
 
@@ -25,6 +38,9 @@ from draken.core.fixed_vector cimport buf_dtype
 from draken.core.fixed_vector cimport buf_itemsize
 from draken.core.fixed_vector cimport buf_length
 from draken.core.fixed_vector cimport free_fixed_buffer
+
+# NULL_HASH constant for null hash entries
+cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
 
 cdef class Int64Vector:
 
@@ -41,7 +57,10 @@ cdef class Int64Vector:
             self.owns_data = True
 
     def __dealloc__(self):
-        free_fixed_buffer(self.ptr, self.owns_data)
+        # Only free if we own the data and the pointer is not NULL
+        if self.owns_data and self.ptr is not NULL:
+            free_fixed_buffer(self.ptr, True)
+            self.ptr = NULL
 
     # Python-friendly properties (backed by C getters for kernels)
     @property
@@ -75,22 +94,178 @@ cdef class Int64Vector:
             dst[i] = src[indices[i]]
         return out
 
-    cpdef int8_t[::1] compare(self, int64_t value):
+    cpdef int8_t[::1] equals(self, int64_t value):
         cdef DrakenFixedBuffer* ptr = self.ptr
         cdef int64_t* data = <int64_t*> ptr.data
         cdef Py_ssize_t i, n = ptr.length
-
-        # Allocate n bytes using Python’s allocator
         cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
         if buf == NULL:
             raise MemoryError()
-
-        # Tight C loop
         for i in range(n):
             buf[i] = 1 if data[i] == value else 0
-
-        # Expose as memoryview (takes ownership of the buffer)
         return <int8_t[:n]> buf
+
+    cpdef int8_t[::1] not_equals(self, int64_t value):
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data[i] != value else 0
+        return <int8_t[:n]> buf
+
+    cpdef int8_t[::1] greater_than(self, int64_t value):
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data[i] > value else 0
+        return <int8_t[:n]> buf
+
+    cpdef int8_t[::1] greater_than_or_equals(self, int64_t value):
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data[i] >= value else 0
+        return <int8_t[:n]> buf
+
+    cpdef int8_t[::1] less_than(self, int64_t value):
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data[i] < value else 0
+        return <int8_t[:n]> buf
+
+    cpdef int8_t[::1] less_than_or_equals(self, int64_t value):
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data[i] <= value else 0
+        return <int8_t[:n]> buf
+
+    cpdef int64_t sum(self):
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        cdef int64_t total = 0
+        for i in range(n):
+            total += data[i]
+        return total
+
+    cpdef int64_t min(self):
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        if n == 0:
+            raise ValueError("Cannot compute min of empty column")
+        cdef int64_t m = data[0]
+        for i in range(1, n):
+            if data[i] < m:
+                m = data[i]
+        return m
+
+    cpdef int64_t max(self):
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        if n == 0:
+            raise ValueError("Cannot compute max of empty column")
+        cdef int64_t m = data[0]
+        for i in range(1, n):
+            if data[i] > m:
+                m = data[i]
+        return m
+
+    cpdef int8_t[::1] is_null(self):
+        """
+        Return a memoryview of int8_t, where each element is 1 if the value is null, 0 otherwise.
+        """
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef Py_ssize_t i, n = ptr.length
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        cdef uint8_t byte, bit
+
+        if buf == NULL:
+            raise MemoryError()
+
+        if ptr.null_bitmap == NULL:
+            # No nulls — fill with 0
+            for i in range(n):
+                buf[i] = 0
+        else:
+            # Extract null bits — 1 means valid, so invert for null
+            for i in range(n):
+                byte = ptr.null_bitmap[i >> 3]
+                bit = (byte >> (i & 7)) & 1
+                buf[i] = 0 if bit else 1
+
+        return <int8_t[:n]> buf
+
+    cpdef list to_pylist(self):
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        cdef list out = []
+        cdef uint8_t byte, bit
+
+        if ptr.null_bitmap == NULL:
+            for i in range(n):
+                out.append(data[i])
+        else:
+            for i in range(n):
+                byte = ptr.null_bitmap[i >> 3]
+                bit = (byte >> (i & 7)) & 1
+                if bit:
+                    out.append(data[i])
+                else:
+                    out.append(None)
+
+        return out
+
+    cpdef uint64_t[::1] hash(self):
+        """
+        Produce lightweight 64-bit hashes from int64_t data using a fast XOR mix.
+        This pattern is fast and produces sufficient entropy for hashing and shuffling.
+        Null entries are assigned a fixed hash value (NULL_HASH).
+        """
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        cdef Py_ssize_t i, n = ptr.length
+        cdef uint64_t* buf = <uint64_t*> PyMem_Malloc(n * sizeof(uint64_t))
+        if buf == NULL:
+            raise MemoryError()
+
+        cdef uint64_t x
+        cdef uint8_t byte, bit
+        for i in range(n):
+            if ptr.null_bitmap != NULL:
+                byte = ptr.null_bitmap[i >> 3]
+                bit = (byte >> (i & 7)) & 1
+                if not bit:
+                    buf[i] = NULL_HASH
+                    continue
+
+            x = <uint64_t> data[i]
+            buf[i] = (x ^ (x >> 33)) * <uint64_t>0xff51afd7ed558ccdU
+
+        return <uint64_t[:n]> buf
 
     def __str__(self):
         cdef list vals = []
