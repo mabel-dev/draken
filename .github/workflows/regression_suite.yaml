@@ -1,0 +1,56 @@
+# This is the main regression test script which tests the entire application.
+# Other GitHub Actions test subsets primarily to ensure compatibility for different OSes.
+
+# This script is run on Ubuntu, the most common OS for CI/CD pipelines.
+# The script is run on Python 3.10, 3.11, and 3.12.
+# The script is run at 4:00 AM UTC every day and on every push to the repository.
+
+name: Regression Suite
+
+on:
+  push:
+    branches-ignore:
+      - main  # Exclude the main branch
+      - 'refs/tags/*'  # Exclude tags (releases)
+  schedule:
+    - cron: "0 4 * * *"
+
+jobs:
+  regression_matrix:
+    strategy:
+      max-parallel: 4
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+  
+      - name: Set up Python ${{ matrix.python-version }} x64
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+        
+      - name: Install Requirements
+        run: |
+          python -m pip install --upgrade pip uv
+          python -m uv pip install --upgrade -r pyproject.toml
+          python -m uv pip install --upgrade -r pyproject.toml --extra=dev
+          python setup.py build_ext --inplace -j 4
+
+      - name: Run Regression Tests
+        run: python -m coverage run -m pytest --color=yes
+
+      - name: Check Coverage
+        run: python -m coverage report -m
+
+      - name: "Upload coverage to Codecov"
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v1
+        with:
+          fail_ci_if_error: false
