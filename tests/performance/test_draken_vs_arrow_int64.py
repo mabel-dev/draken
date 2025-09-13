@@ -11,7 +11,7 @@ from pyarrow import compute
 def test_performance_less_than_int64():
     import time
 
-    arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"].combine_chunks()
+    arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"]
     vec = DrakenVector.from_arrow(arr)
 
     start = time.perf_counter_ns()
@@ -28,7 +28,7 @@ def test_performance_less_than_int64():
 def test_performance_greater_than_int64():
     import time
 
-    arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"].combine_chunks()
+    arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"]
     vec = DrakenVector.from_arrow(arr)
 
     start = time.perf_counter_ns()
@@ -44,7 +44,7 @@ def test_performance_greater_than_int64():
 def test_performance_equal_int64():
     import time
 
-    arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"].combine_chunks()
+    arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"]
     vec = DrakenVector.from_arrow(arr)
 
     start = time.perf_counter_ns()
@@ -60,7 +60,7 @@ def test_performance_equal_int64():
 def test_performance_not_equal_int64():
     import time
 
-    arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"].combine_chunks()
+    arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"]
     vec = DrakenVector.from_arrow(arr)
 
     start = time.perf_counter_ns()
