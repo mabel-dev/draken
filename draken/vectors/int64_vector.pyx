@@ -38,11 +38,12 @@ from draken.core.fixed_vector cimport buf_dtype
 from draken.core.fixed_vector cimport buf_itemsize
 from draken.core.fixed_vector cimport buf_length
 from draken.core.fixed_vector cimport free_fixed_buffer
+from draken.vectors.draken_vector cimport DrakenVector
 
 # NULL_HASH constant for null hash entries
 cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
 
-cdef class Int64Vector:
+cdef class Int64Vector(DrakenVector):
 
     def __cinit__(self, size_t length=0, bint wrap=False):
         """

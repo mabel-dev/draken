@@ -1,0 +1,1 @@
+cpdef object vector_from_arrow(object array)
