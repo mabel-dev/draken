@@ -1,3 +1,16 @@
+[project]
+name = "Draken"
+version = "0.0.0"
+description = "Cython/Arrow Interop"
+dependencies = [
+    "pyarrow"
+]
+
+[dependency-groups]
+dev = [
+    "opteryx"
+]
+
 [tool.black]
 line-length = 100
 target-version = ['py312']
