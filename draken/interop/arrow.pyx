@@ -74,6 +74,10 @@ cdef void expose_draken_fixed_as_arrow(
 
 
 cpdef object vector_from_arrow(object array):
+
+    if hasattr(array, "combine_chunks"):
+        array = array.combine_chunks()
+
     pa_type = array.type
     if pa_type.equals(pyarrow.int64()):
         return int64_from_arrow(array)

@@ -5,6 +5,8 @@ description = "Cython/Arrow Interop"
 dependencies = [
     "pyarrow"
 ]
+requires-python = '>=3.11'
+readme = 'dynamic'
 
 [dependency-groups]
 dev = [
