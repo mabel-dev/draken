@@ -1,10 +1,21 @@
-from libc.stdlib cimport malloc, free
-from libc.stdint cimport int64_t, uintptr_t
+# cython: language_level=3
+# cython: nonecheck=False
+# cython: cdivision=True
+# cython: initializedcheck=False
+# cython: infer_types=True
+# cython: wraparound=False
+# cython: boundscheck=False
+
+import pyarrow
+
+from libc.stdlib cimport free
+from libc.stdlib cimport malloc
 
 from draken.core.buffers cimport DrakenFixedBuffer
+from draken.interop.arrow_c_data_interface cimport ARROW_FLAG_NULLABLE
 from draken.interop.arrow_c_data_interface cimport ArrowArray
 from draken.interop.arrow_c_data_interface cimport ArrowSchema
-from draken.interop.arrow_c_data_interface cimport ARROW_FLAG_NULLABLE
+from draken.vectors.int64_vector cimport from_arrow as int64_from_arrow
 
 
 cdef void release_arrow_array(ArrowArray* arr) noexcept:
@@ -51,48 +62,9 @@ cdef void expose_draken_fixed_as_arrow(
     schema.private_data = NULL
 
 
-
-
-
-
-
-import pyarrow
-from libc.stdint cimport intptr_t, uint8_t
-
-from draken.vectors.int64_vector cimport Int64Vector
-from draken.core.buffers cimport DrakenFixedBuffer, DRAKEN_INT64
-
 cpdef object vector_from_arrow(object array):
     pa_type = array.type
     if pa_type.equals(pyarrow.int64()):
-        return _wrap_int64(array)
+        return int64_from_arrow(array)
     # TODO: add float64, bool, string, etc.
     raise NotImplementedError(f"from_arrow: unsupported type {pa_type}")
-
-cdef Int64Vector _wrap_int64(object array):
-    cdef Int64Vector vec = Int64Vector(0, True)   # wrap=True: no alloc
-    vec.ptr = <DrakenFixedBuffer*> malloc(sizeof(DrakenFixedBuffer))
-    if vec.ptr == NULL:
-        raise MemoryError()
-    vec.owns_data = False
-
-    cdef object bufs = array.buffers()
-    cdef intptr_t base_ptr = <intptr_t> bufs[1].address
-    cdef size_t itemsize = 8
-    cdef Py_ssize_t offset = array.offset
-    cdef intptr_t nb_addr
-
-    vec.ptr.type = DRAKEN_INT64
-    vec.ptr.itemsize = itemsize
-    vec.ptr.length = <size_t> len(array)
-
-    cdef intptr_t addr = base_ptr + offset * itemsize
-    vec.ptr.data = <void*> addr
-
-    if bufs[0] is not None:
-        nb_addr = bufs[0].address
-        vec.ptr.null_bitmap = <uint8_t*> nb_addr
-    else:
-        vec.ptr.null_bitmap = NULL
-
-    return vec

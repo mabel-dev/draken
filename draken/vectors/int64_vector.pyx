@@ -1,20 +1,30 @@
 # cython: language_level=3
-# cython: boundscheck=False, wraparound=False, cdivision=True
+# cython: nonecheck=False
+# cython: cdivision=True
+# cython: initializedcheck=False
+# cython: infer_types=True
+# cython: wraparound=False
+# cython: boundscheck=False
 
-import pyarrow
 import ctypes
+import pyarrow
 
-from libc.stdint cimport int64_t, int32_t, intptr_t, int8_t, uint8_t
+from cpython.mem cimport PyMem_Malloc
 
-from libc.stdlib cimport malloc, free
-from cpython.mem cimport PyMem_Malloc, PyMem_Free
-cimport cython
+from libc.stdint cimport int32_t
+from libc.stdint cimport int64_t
+from libc.stdint cimport int8_t
+from libc.stdint cimport intptr_t
+from libc.stdint cimport uint8_t
+from libc.stdlib cimport malloc
 
-from draken.core.buffers cimport DrakenFixedBuffer, DRAKEN_INT64
-from draken.core.fixed_vector cimport (
-    alloc_fixed_buffer, free_fixed_buffer,
-    buf_length, buf_itemsize, buf_dtype
-)
+from draken.core.buffers cimport DrakenFixedBuffer
+from draken.core.buffers cimport DRAKEN_INT64
+from draken.core.fixed_vector cimport alloc_fixed_buffer
+from draken.core.fixed_vector cimport buf_dtype
+from draken.core.fixed_vector cimport buf_itemsize
+from draken.core.fixed_vector cimport buf_length
+from draken.core.fixed_vector cimport free_fixed_buffer
 
 cdef class Int64Vector:
 
@@ -89,3 +99,32 @@ cdef class Int64Vector:
         for i in range(k):
             vals.append(data[i])
         return f"<Int64Vector len={buf_length(self.ptr)} values={vals}>"
+
+
+cdef Int64Vector from_arrow(object array):
+    cdef Int64Vector vec = Int64Vector(0, True)   # wrap=True: no alloc
+    vec.ptr = <DrakenFixedBuffer*> malloc(sizeof(DrakenFixedBuffer))
+    if vec.ptr == NULL:
+        raise MemoryError()
+    vec.owns_data = False
+
+    cdef object bufs = array.buffers()
+    cdef intptr_t base_ptr = <intptr_t> bufs[1].address
+    cdef size_t itemsize = 8
+    cdef Py_ssize_t offset = array.offset
+    cdef intptr_t nb_addr
+
+    vec.ptr.type = DRAKEN_INT64
+    vec.ptr.itemsize = itemsize
+    vec.ptr.length = <size_t> len(array)
+
+    cdef intptr_t addr = base_ptr + offset * itemsize
+    vec.ptr.data = <void*> addr
+
+    if bufs[0] is not None:
+        nb_addr = bufs[0].address
+        vec.ptr.null_bitmap = <uint8_t*> nb_addr
+    else:
+        vec.ptr.null_bitmap = NULL
+
+    return vec

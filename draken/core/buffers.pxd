@@ -1,4 +1,5 @@
-from libc.stdint cimport uint8_t, int32_t
+from libc.stdint cimport int32_t
+from libc.stdint cimport uint8_t
 
 cdef extern from "buffers.h":
 

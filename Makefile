@@ -1,7 +1,7 @@
 lint:
 	python -m pip install --quiet --upgrade pycln isort ruff yamllint cython-lint
 #	python -m yamllint .
-	cython-lint opteryx/compiled/**/*.pyx
+	cython-lint draken/**/*.pyx
 	python -m ruff check --fix --exit-zero
 	python -m pycln .
 	python -m isort .
@@ -9,8 +9,8 @@ lint:
 
 update:
 	python -m pip install --upgrade pip uv
-	python -m uv pip install --upgrade -r tests/requirements.txt
-	python -m uv pip install --upgrade -r requirements.txt
+	python -m uv pip install --upgrade -r pyproject.toml
+	#python -m uv pip install --upgrade -r pyproject.toml --extra=dev
 
 coverage:
 	python -m pip install --quiet --upgrade pytest coverage
