@@ -6,6 +6,23 @@
 # cython: wraparound=False
 # cython: boundscheck=False
 
+"""
+Fixed-width buffer helpers used by Draken vector implementations.
+
+This header declares small inline C helpers to create, free, and inspect
+`DrakenFixedBuffer` instances:
+
+- alloc_fixed_buffer(dtype, length, itemsize): allocate header and data buffer
+  (skips data allocation when length==0 or itemsize==0); raises MemoryError on OOM.
+- free_fixed_buffer(buf, owns_data): conditionally frees data and null bitmap
+  based on ownership, then releases the header.
+- buf_length(buf) / buf_itemsize(buf) / buf_dtype(buf): fast metadata accessors.
+
+The null_bitmap is not allocated here; producers may set it to a valid bitmap
+or NULL. These helpers are consumed by fixed-width vectors (e.g., Int64Vector)
+to centralize allocation and lifetime management.
+"""
+
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport free
 from libc.stdlib cimport malloc
