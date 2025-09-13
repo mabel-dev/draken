@@ -1,8 +1,17 @@
 # cython: language_level=3
-from libc.stdlib cimport malloc, free
-from libc.stdint cimport uint8_t
+# cython: nonecheck=False
+# cython: cdivision=True
+# cython: initializedcheck=False
+# cython: infer_types=True
+# cython: wraparound=False
+# cython: boundscheck=False
 
-from draken.core.buffers cimport DrakenFixedBuffer, DrakenType
+from libc.stdint cimport uint8_t
+from libc.stdlib cimport free
+from libc.stdlib cimport malloc
+
+from draken.core.buffers cimport DrakenFixedBuffer
+from draken.core.buffers cimport DrakenType
 
 cdef inline DrakenFixedBuffer* alloc_fixed_buffer(DrakenType dtype, size_t length, size_t itemsize):
     cdef DrakenFixedBuffer* buf = <DrakenFixedBuffer*> malloc(sizeof(DrakenFixedBuffer))

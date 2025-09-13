@@ -1,11 +1,21 @@
-# draken_var.pyx
+# cython: language_level=3
+# cython: nonecheck=False
+# cython: cdivision=True
+# cython: initializedcheck=False
+# cython: infer_types=True
+# cython: wraparound=False
+# cython: boundscheck=False
 
+from libc.stdlib cimport calloc
 from libc.stdlib cimport free
-from libc.stdint cimport int32_t, uint8_t, intptr_t
-from libc.stdlib cimport malloc, calloc
+from libc.stdlib cimport malloc
 
-from draken.core.buffers cimport DrakenVarBuffer
+from libc.stdint cimport int32_t
+from libc.stdint cimport intptr_t
+from libc.stdint cimport uint8_t
+
 from draken.core.buffers cimport DRAKEN_STRING
+from draken.core.buffers cimport DrakenVarBuffer
 
 cdef DrakenVarBuffer* alloc_var_column(size_t length, size_t data_capacity):
     cdef DrakenVarBuffer* col = <DrakenVarBuffer*> malloc(sizeof(DrakenVarBuffer))
