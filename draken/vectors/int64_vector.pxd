@@ -4,8 +4,9 @@ from libc.stdint cimport int8_t
 from libc.stdint cimport uint64_t
 
 from draken.core.buffers cimport DrakenFixedBuffer
+from draken.vectors.draken_vector cimport DrakenVector
 
-cdef class Int64Vector:
+cdef class Int64Vector(DrakenVector):
     cdef DrakenFixedBuffer* ptr
     cdef bint owns_data
 

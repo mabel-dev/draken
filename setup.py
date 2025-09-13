@@ -84,8 +84,8 @@ extensions = [
         ],
     ),
     Extension(
-        name="draken.core.var_vector",
-        sources=["draken/core/var_vector.pyx"],
+        name="draken.vectors.draken_vector",
+        sources=["draken/vectors/draken_vector.pyx"],
         extra_compile_args=C_COMPILE_FLAGS,
         include_dirs=include_dirs + ["draken"],
         depends=["draken/core/buffers.h"],
