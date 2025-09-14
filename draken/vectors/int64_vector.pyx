@@ -219,6 +219,22 @@ cdef class Int64Vector(Vector):
 
         return <int8_t[:n]> buf
 
+    @property
+    def null_count(self):
+        """Return the number of nulls in the vector."""
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef Py_ssize_t i, n = ptr.length
+        cdef Py_ssize_t count = 0
+        cdef uint8_t byte, bit
+        if ptr.null_bitmap == NULL:
+            return 0
+        for i in range(n):
+            byte = ptr.null_bitmap[i >> 3]
+            bit = (byte >> (i & 7)) & 1
+            if not bit:
+                count += 1
+        return count
+
     cpdef list to_pylist(self):
         cdef DrakenFixedBuffer* ptr = self.ptr
         cdef int64_t* data = <int64_t*> ptr.data
