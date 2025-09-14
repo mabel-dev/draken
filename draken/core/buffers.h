@@ -3,17 +3,31 @@
 #include <stddef.h>
 
 typedef enum {
-    DRAKEN_INT8,
-    DRAKEN_INT16,
-    DRAKEN_INT32,
-    DRAKEN_INT64,
-    DRAKEN_FLOAT32,
-    DRAKEN_FLOAT64,
-    DRAKEN_DATE32,
-    DRAKEN_TIMESTAMP64,
-    DRAKEN_BOOL,
-    DRAKEN_STRING,
-    DRAKEN_ARRAY
+    // Integer types: 1–19
+    DRAKEN_INT8           = 1,
+    DRAKEN_INT16          = 2,
+    DRAKEN_INT32          = 3,
+    DRAKEN_INT64          = 4,
+
+    // Floating-point types: 20–29
+    DRAKEN_FLOAT32        = 20,
+    DRAKEN_FLOAT64        = 21,
+
+    // Temporal types: 30–49
+    DRAKEN_DATE32         = 30,
+    DRAKEN_TIMESTAMP64    = 40,
+
+    // Boolean: 50
+    DRAKEN_BOOL           = 50,
+
+    // String-like: 60–79
+    DRAKEN_STRING         = 60,
+
+    // Complex types: 80–99
+    DRAKEN_ARRAY          = 80,
+
+    // Catch-all
+    DRAKEN_NON_NATIVE     = 100,  // Unoptimized or fallback-wrapped Arrow types
 } DrakenType;
 
 typedef struct {
@@ -38,3 +52,11 @@ typedef struct {
     size_t length;            // number of array entries (rows)
     DrakenType value_type;    // type of the child values
 } DrakenArrayBuffer;
+
+typedef struct {
+    const char** column_names;       // length == num_columns
+    DrakenType* column_types;        // length == num_columns
+    void** columns;                  // (DrakenFixedColumn* or DrakenVarColumn*)[num_columns]
+    size_t num_columns;
+    size_t num_rows;
+} DrakenMorsel;

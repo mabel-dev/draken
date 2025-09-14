@@ -97,6 +97,16 @@ extensions = [
         include_dirs=include_dirs + ["draken"],
         depends=["draken/core/buffers.h"],
     ),
+    Extension(
+        name="draken.morsels.morsel",
+        sources=["draken/morsels/morsel.pyx"],
+        extra_compile_args=C_COMPILE_FLAGS,
+        include_dirs=include_dirs + ["draken"],
+        depends=[
+            "draken/core/buffers.h"
+            "draken/morsels/morsel.h"
+        ],
+    ),
 
 ]
 
