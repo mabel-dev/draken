@@ -4,7 +4,7 @@ import sys
 sys.path.insert(1, "/".join([str(p) for p in sys.path[0].split("/")[:-2]]))
 
 import opteryx
-from draken import DrakenVector
+from draken import Vector
 from pyarrow import compute
 
 
@@ -12,7 +12,7 @@ def test_performance_less_than_int64():
     import time
 
     arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"]
-    vec = DrakenVector.from_arrow(arr)
+    vec = Vector.from_arrow(arr)
 
     start = time.perf_counter_ns()
     vec.less_than(10)
@@ -29,7 +29,7 @@ def test_performance_greater_than_int64():
     import time
 
     arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"]
-    vec = DrakenVector.from_arrow(arr)
+    vec = Vector.from_arrow(arr)
 
     start = time.perf_counter_ns()
     vec.greater_than(10)
@@ -45,7 +45,7 @@ def test_performance_equal_int64():
     import time
 
     arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"]
-    vec = DrakenVector.from_arrow(arr)
+    vec = Vector.from_arrow(arr)
 
     start = time.perf_counter_ns()
     vec.equals(10)
@@ -61,7 +61,7 @@ def test_performance_not_equal_int64():
     import time
 
     arr = opteryx.query_to_arrow("SELECT id FROM $satellites")["id"]
-    vec = DrakenVector.from_arrow(arr)
+    vec = Vector.from_arrow(arr)
 
     start = time.perf_counter_ns()
     vec.not_equals(10)

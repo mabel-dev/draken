@@ -1,16 +1,16 @@
 import pyarrow
 import pyarrow.compute as pc
 
-from draken.vectors.draken_vector import DrakenVector
+from draken.vectors.vector import Vector
 
 
-class ArrowVector(DrakenVector):
+class ArrowVector(Vector):
     """
-    Fallback DrakenVector implementation backed by a pyarrow.Array.
-    This is used for types that don't yet have a native DrakenVector.
+    Fallback Vector implementation backed by a pyarrow.Array.
+    This is used for types that don't yet have a native Vector.
 
     - Wraps any pyarrow.Array
-    - Methods mirror DrakenVector API
+    - Methods mirror Vector API
     - Delegates to pyarrow.compute
     """
 
@@ -45,22 +45,22 @@ class ArrowVector(DrakenVector):
         return ArrowVector(out)
 
     def equals(self, value):
-        return pc.equal(self._arr, value).to_numpy().astype("int8")
+        return pc.equal(self._arr, value).to_numpy(False).astype("bool")
 
     def not_equals(self, value):
-        return pc.not_equal(self._arr, value).to_numpy().astype("int8")
+        return pc.not_equal(self._arr, value).to_numpy(False).astype("bool")
 
     def greater_than(self, value):
-        return pc.greater(self._arr, value).to_numpy().astype("int8")
+        return pc.greater(self._arr, value).to_numpy(False).astype("bool")
 
     def greater_than_or_equals(self, value):
-        return pc.greater_equal(self._arr, value).to_numpy().astype("int8")
+        return pc.greater_equal(self._arr, value).to_numpy(False).astype("bool")
 
     def less_than(self, value):
-        return pc.less(self._arr, value).to_numpy().astype("int8")
+        return pc.less(self._arr, value).to_numpy(False).astype("bool")
 
     def less_than_or_equals(self, value):
-        return pc.less_equal(self._arr, value).to_numpy().astype("int8")
+        return pc.less_equal(self._arr, value).to_numpy(False).astype("bool")
 
     def sum(self):
         return pc.sum(self._arr).as_py()
@@ -72,7 +72,7 @@ class ArrowVector(DrakenVector):
         return pc.max(self._arr).as_py()
 
     def is_null(self):
-        return pc.is_null(self._arr).to_numpy().astype("int8")
+        return pc.is_null(self._arr).to_numpy(False).astype("bool")
 
     def to_pylist(self):
         return self._arr.to_pylist()
@@ -80,7 +80,7 @@ class ArrowVector(DrakenVector):
     def hash(self):
         # Arrow has experimental hash kernels; fallback: use Python's hash
         try:
-            return pc.hash(self._arr).to_numpy().astype("uint64")
+            return pc.hash(self._arr).to_numpy(False).astype("uint64")
         except Exception:
             return [hash(v) if v is not None else 0 for v in self._arr.to_pylist()]
 
