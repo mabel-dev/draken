@@ -8,7 +8,7 @@
 
 from draken.interop.arrow cimport vector_from_arrow
 
-cdef class DrakenVector:
+cdef class Vector:
 
     @classmethod
     def from_arrow(cls, arrow_array):

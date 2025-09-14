@@ -8,5 +8,5 @@
 
 from draken.interop.arrow import vector_from_arrow
 
-cdef class DrakenVector:
+cdef class Vector:
     cdef bint here

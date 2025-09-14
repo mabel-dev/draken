@@ -7,9 +7,12 @@ dependencies = [
 ]
 requires-python = '>=3.11'
 readme = 'dynamic'
+authors = [{name='Justin Joyce', email='justin.joyce@joocer.com'}]
+maintainers = [{name='Justin Joyce', email='justin.joyce@joocer.com'}]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
+    "cython",
     "opteryx"
 ]
 
@@ -43,7 +46,7 @@ skips = ["B101", "B105", "B324", "B608"]
 # B608 - Hardcoded SQL
 
 [build-system]
-requires = ["setuptools>=42", "wheel", "cython==3.1.3", "numpy"]
+requires = ["setuptools>=42", "wheel", "cython"]
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
@@ -58,7 +61,6 @@ docstring-code-line-length = 100
 [tool.cython-lint]
 max-line-length = 120
 ignore = ['E265', 'E501']
-exclude = '**/containers.pxd'
 
 [tool.ruff.lint]
 select = ["SIM", "NPY201"]
@@ -71,8 +73,7 @@ ignore = []
 
 [tool.coverage.run]
 branch = true
-source = ["opteryx", "opteryx/**"]
-omit = ["**/third_party/**"]
+source = ["draken", "draken/**"]
 
 [tool.coverage.report]
 show_missing = true  # Show missing lines in the report

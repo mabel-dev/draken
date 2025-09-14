@@ -26,6 +26,7 @@ from draken.core.buffers cimport DrakenFixedBuffer
 from draken.interop.arrow_c_data_interface cimport ARROW_FLAG_NULLABLE
 from draken.interop.arrow_c_data_interface cimport ArrowArray
 from draken.interop.arrow_c_data_interface cimport ArrowSchema
+from draken.vectors.arrow_vector import from_arrow as arrow_from_arrow
 from draken.vectors.int64_vector cimport from_arrow as int64_from_arrow
 
 
@@ -81,5 +82,6 @@ cpdef object vector_from_arrow(object array):
     pa_type = array.type
     if pa_type.equals(pyarrow.int64()):
         return int64_from_arrow(array)
-    # TODO: add float64, bool, string, etc.
-    raise NotImplementedError(f"from_arrow: unsupported type {pa_type}")
+
+    # fall back implementation (just wrap pyarrow compute)
+    return arrow_from_arrow(array)
