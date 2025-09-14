@@ -23,6 +23,7 @@ from libc.stdlib cimport free
 from libc.stdlib cimport malloc
 
 from draken.core.buffers cimport DrakenFixedBuffer
+from draken.core.buffers cimport DrakenType
 from draken.interop.arrow_c_data_interface cimport ARROW_FLAG_NULLABLE
 from draken.interop.arrow_c_data_interface cimport ArrowArray
 from draken.interop.arrow_c_data_interface cimport ArrowSchema
@@ -85,3 +86,34 @@ cpdef object vector_from_arrow(object array):
 
     # fall back implementation (just wrap pyarrow compute)
     return arrow_from_arrow(array)
+
+
+cpdef DrakenType arrow_type_to_draken(object dtype):
+    """
+    Convert a PyArrow DataType to a DrakenType enum.
+    Raises TypeError if unsupported.
+    """
+    if pyarrow.types.is_int8(dtype):
+        return DrakenType.DRAKEN_INT8
+    elif pyarrow.types.is_int16(dtype):
+        return DrakenType.DRAKEN_INT16
+    elif pyarrow.types.is_int32(dtype):
+        return DrakenType.DRAKEN_INT32
+    elif pyarrow.types.is_int64(dtype):
+        return DrakenType.DRAKEN_INT64
+    elif pyarrow.types.is_float32(dtype):
+        return DrakenType.DRAKEN_FLOAT32
+    elif pyarrow.types.is_float64(dtype):
+        return DrakenType.DRAKEN_FLOAT64
+    elif pyarrow.types.is_date32(dtype):
+        return DrakenType.DRAKEN_DATE32
+    elif pyarrow.types.is_timestamp(dtype):
+        return DrakenType.DRAKEN_TIMESTAMP64
+    elif pyarrow.types.is_boolean(dtype):
+        return DrakenType.DRAKEN_BOOL
+    elif pyarrow.types.is_string(dtype) or pyarrow.types.is_large_string(dtype):
+        return DrakenType.DRAKEN_STRING
+    elif pyarrow.types.is_list(dtype) or pyarrow.types.is_large_list(dtype):
+        return DrakenType.DRAKEN_ARRAY
+
+    return DrakenType.DRAKEN_NON_NATIVE

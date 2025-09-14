@@ -29,6 +29,8 @@ cdef extern from "buffers.h":
         DRAKEN_STRING
         DRAKEN_ARRAY
 
+        DRAKEN_NON_NATIVE
+
     # Fixed-width column
     ctypedef struct DrakenFixedBuffer:
         void* data                 # int64_t*, double*, etc.
@@ -51,3 +53,10 @@ cdef extern from "buffers.h":
         uint8_t* null_bitmap       # optional, 1 bit per row
         size_t length              # number of array entries (rows)
         DrakenType value_type      # type of the child values
+
+    ctypedef struct DrakenMorsel:
+        const char** column_names
+        DrakenType* column_types
+        void** columns
+        size_t num_columns
+        size_t num_rows

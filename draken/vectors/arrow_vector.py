@@ -26,7 +26,9 @@ class ArrowVector(Vector):
 
     @property
     def dtype(self):
-        return self._arr.type
+        from draken.interop.arrow import arrow_type_to_draken
+
+        return arrow_type_to_draken(self._arr.type)
 
     @property
     def itemsize(self):
