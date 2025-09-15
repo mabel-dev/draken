@@ -45,6 +45,7 @@ cdef extern from "buffers.h":
         int32_t* offsets           # [N+1] entries
         uint8_t* null_bitmap       # optional
         size_t length
+        DrakenType type
 
     # Array column (list<T>)
     ctypedef struct DrakenArrayBuffer:
