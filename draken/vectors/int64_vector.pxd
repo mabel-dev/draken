@@ -22,6 +22,7 @@ cdef class Int64Vector(Vector):
     cpdef int8_t[::1] is_null(self)
 
     cpdef list to_pylist(self)
+    #cpdef int64_t __getitem__(self, Py_ssize_t i)
 
     cpdef int64_t sum(self)
     cpdef int64_t min(self)

@@ -19,13 +19,19 @@ This module provides:
 import pyarrow
 
 from cpython.mem cimport PyMem_Malloc
-from libc.stdint cimport int32_t, uint8_t, intptr_t, uint64_t
+from cpython.bytes cimport PyBytes_FromStringAndSize
+from libc.stdint cimport int32_t
+from libc.stdint cimport intptr_t
+from libc.stdint cimport uint64_t
+from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc
 from libc.string cimport memcmp
 
 from draken.core.buffers cimport DrakenVarBuffer
 from draken.core.buffers cimport DRAKEN_STRING
-from draken.core.var_vector cimport alloc_var_buffer, free_var_buffer, buf_dtype
+from draken.core.var_vector cimport alloc_var_buffer
+from draken.core.var_vector cimport buf_dtype
+from draken.core.var_vector cimport free_var_buffer
 from draken.vectors.vector cimport Vector
 
 # Constant for null hashes
@@ -67,17 +73,35 @@ cdef class StringVector(Vector):
         return pyarrow.Array.from_buffers(pyarrow.string(), n,
                                           [None, offs_buf, data_buf])
 
-    cpdef bytes get(self, Py_ssize_t i):
+    def __getitem__(self, Py_ssize_t i) -> bytes:
         """
         Return entry i as raw bytes.
         """
         cdef DrakenVarBuffer* ptr = self.ptr
         if i < 0 or i >= ptr.length:
             raise IndexError("Index out of range")
+
         cdef int32_t start = ptr.offsets[i]
         cdef int32_t end = ptr.offsets[i+1]
         cdef Py_ssize_t nbytes = end - start
-        return (<char*>ptr.data + start)[:nbytes]
+        cdef char* base = <char*>ptr.data
+        return PyBytes_FromStringAndSize(base + start, nbytes)
+
+    @property
+    def null_count(self):
+        """Return the number of nulls in the vector."""
+        cdef DrakenVarBuffer* ptr = self.ptr
+        cdef Py_ssize_t i, n = ptr.length
+        cdef Py_ssize_t count = 0
+        cdef uint8_t byte, bit
+        if ptr.null_bitmap == NULL:
+            return 0
+        for i in range(n):
+            byte = ptr.null_bitmap[i >> 3]
+            bit = (byte >> (i & 7)) & 1
+            if not bit:
+                count += 1
+        return count
 
     cpdef int8_t[::1] equals(self, bytes value):
         """
@@ -143,13 +167,14 @@ cdef class StringVector(Vector):
         cdef list vals = []
         cdef Py_ssize_t i, k = min(self.ptr.length, 5)
         for i in range(k):
-            vals.append(self.get(i))
+            vals.append(self[i])
         return f"<StringVector len={self.ptr.length} values={vals}>"
 
 
 cdef StringVector from_arrow(object array):
     """
     Wrap an Arrow StringArray without copying.
+    Keeps references to Arrow buffers to prevent GC from freeing memory.
     """
     cdef StringVector vec = StringVector(0, 0, True)
     vec.ptr = <DrakenVarBuffer*> malloc(sizeof(DrakenVarBuffer))
@@ -158,20 +183,24 @@ cdef StringVector from_arrow(object array):
     vec.owns_data = False
 
     cdef object bufs = array.buffers()
+    vec._arrow_null_buf = bufs[0]
+    vec._arrow_offs_buf = bufs[1]
+    vec._arrow_data_buf = bufs[2]
+
     vec.ptr.length = <size_t> len(array)
 
     # Data buffer (bytes)
-    cdef intptr_t data_addr = <intptr_t> bufs[2].address
+    cdef intptr_t data_addr = bufs[2].address
     vec.ptr.data = <uint8_t*> data_addr
 
     # Offsets buffer (int32_t[length+1])
-    cdef intptr_t offs_addr = <intptr_t> bufs[1].address
+    cdef intptr_t offs_addr = bufs[1].address
     vec.ptr.offsets = <int32_t*> offs_addr
 
     # Null bitmap (optional)
     cdef intptr_t nb_addr
     if bufs[0] is not None:
-        nb_addr = <intptr_t> bufs[0].address
+        nb_addr = bufs[0].address
         vec.ptr.null_bitmap = <uint8_t*> nb_addr
     else:
         vec.ptr.null_bitmap = NULL
