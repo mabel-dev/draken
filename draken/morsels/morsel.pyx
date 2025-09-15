@@ -18,6 +18,7 @@ from draken.core.buffers cimport DrakenMorsel
 cdef class Morsel:
     cdef DrakenMorsel* ptr
     cdef list _encoded_names
+    cdef list _columns
 
     def __dealloc__(self):
         if self.ptr is not NULL:
@@ -33,6 +34,7 @@ cdef class Morsel:
         cdef Vector vec
         cdef bytes encoded_name
 
+        self._columns = [None] * n
         self._encoded_names = [None] * n
         self.ptr = <DrakenMorsel*> PyMem_Malloc(sizeof(DrakenMorsel))
         self.ptr.num_columns = n
@@ -44,8 +46,9 @@ cdef class Morsel:
         for i in range(n):
             col = table.column(i)
             vec = Vector.from_arrow(col)
-            name = table.schema.field(i).name
+            self._columns[i] = vec
 
+            name = table.schema.field(i).name
             encoded_name = name.encode("utf-8")
             self._encoded_names[i] = encoded_name
 
@@ -55,20 +58,23 @@ cdef class Morsel:
 
         return self
 
-    def column(self, str name):
+    def column(self, bytes name):
         for i in range(self.ptr.num_columns):
             if self.ptr.column_names[i] == name:
-                return self.columns[i]
+                return <Vector>self.ptr.columns[i]
         raise KeyError(f"Column '{name}' not found")
 
+    @property
     def shape(self):
         """Return (num_rows, num_columns) tuple."""
         return (self.ptr.num_rows, self.ptr.num_columns)
 
+    @property
     def num_rows(self):
         """Return the number of rows."""
         return self.ptr.num_rows
 
+    @property
     def num_columns(self):
         """Return the number of columns."""
         return self.ptr.num_columns

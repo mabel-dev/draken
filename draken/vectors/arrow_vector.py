@@ -41,7 +41,7 @@ class ArrowVector(Vector):
         return self._arr
 
     # -------- Generic operations --------
-    def take(self, indices):
+    def take(self, indices) -> "ArrowVector":
         indices_arr = pyarrow.array(indices, type=pyarrow.int32())
         out = pc.take(self._arr, indices_arr)
         return ArrowVector(out)
@@ -75,6 +75,11 @@ class ArrowVector(Vector):
 
     def is_null(self):
         return pc.is_null(self._arr).to_numpy(False).astype("bool")
+
+    @property
+    def null_count(self) -> int:
+        """Return the number of nulls in the array."""
+        return self._arr.null_count
 
     def to_pylist(self):
         return self._arr.to_pylist()

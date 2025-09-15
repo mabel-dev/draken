@@ -29,6 +29,7 @@ from draken.interop.arrow_c_data_interface cimport ArrowArray
 from draken.interop.arrow_c_data_interface cimport ArrowSchema
 from draken.vectors.arrow_vector import from_arrow as arrow_from_arrow
 from draken.vectors.int64_vector cimport from_arrow as int64_from_arrow
+from draken.vectors.string_vector cimport from_arrow as string_from_arrow
 
 
 cdef void release_arrow_array(ArrowArray* arr) noexcept:
@@ -83,6 +84,8 @@ cpdef object vector_from_arrow(object array):
     pa_type = array.type
     if pa_type.equals(pyarrow.int64()):
         return int64_from_arrow(array)
+    if pa_type.equals(pyarrow.string()) or pa_type.equals(pyarrow.binary()):
+        return string_from_arrow(array)
 
     # fall back implementation (just wrap pyarrow compute)
     return arrow_from_arrow(array)
