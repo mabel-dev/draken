@@ -11,9 +11,32 @@ from cpython.mem cimport PyMem_Malloc
 from libc.string cimport strlen
 
 from draken.vectors.vector cimport Vector
-from draken.core.buffers cimport DrakenType
-from draken.core.buffers cimport DrakenMorsel
+from draken.core.buffers cimport DrakenType, DrakenMorsel
 
+# Python helper: int subclass for DrakenType enum debugging
+cdef class DrakenTypeInt(int):
+    def __repr__(self):
+        return f"{self._enum_name()}({int(self)})"
+
+    def __str__(self):
+        return self._enum_name()
+
+    def _enum_name(self):
+        mapping = {
+            1: "DRAKEN_INT8",
+            2: "DRAKEN_INT16",
+            3: "DRAKEN_INT32",
+            4: "DRAKEN_INT64",
+            20: "DRAKEN_FLOAT32",
+            21: "DRAKEN_FLOAT64",
+            30: "DRAKEN_DATE32",
+            40: "DRAKEN_TIMESTAMP64",
+            50: "DRAKEN_BOOL",
+            60: "DRAKEN_STRING",
+            80: "DRAKEN_ARRAY",
+            100: "DRAKEN_NON_NATIVE",
+        }
+        return mapping.get(int(self), f"UNKNOWN({int(self)})")
 
 cdef class Morsel:
     cdef DrakenMorsel* ptr
@@ -80,7 +103,7 @@ cdef class Morsel:
         return self.ptr.num_columns
 
     @property
-    def column_names(self):
+    def column_names(self) -> list:
         """Return the list of column names."""
         cdef list names = []
         cdef size_t i
@@ -89,6 +112,24 @@ cdef class Morsel:
             cstr = self.ptr.column_names[i]
             names.append(<str> PyBytes_FromStringAndSize(cstr, strlen(cstr)))
         return names
+
+    @property
+    def column_types(self):
+        """Return the list of column types"""
+        cdef list types = []
+        cdef size_t i
+        for i in range(self.ptr.num_columns):
+            types.append(DrakenTypeInt(self.ptr.column_types[i]))
+        return types
+
+    def __getitem__(self, Py_ssize_t i) -> tuple:
+        out = []
+        for c in self._columns:
+            try:
+                out.append(c[i])
+            except Exception:
+                out.append(None)
+        return tuple(out)
 
     def __repr__(self):
         return f"<Morsel: {self.ptr.num_rows} rows x {self.ptr.num_columns} columns>"

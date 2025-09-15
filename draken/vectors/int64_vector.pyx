@@ -76,6 +76,19 @@ cdef class Int64Vector(Vector):
     def dtype(self):
         return buf_dtype(self.ptr)
 
+    def __getitem__(self, Py_ssize_t i) -> int64_t:
+        """Return the value at index i."""
+        cdef DrakenFixedBuffer* ptr = self.ptr
+        cdef int64_t* data = <int64_t*> ptr.data
+        if i < 0 or i >= ptr.length:
+            raise IndexError("Index out of bounds")
+        if ptr.null_bitmap != NULL:
+            byte = ptr.null_bitmap[i >> 3]
+            bit = (byte >> (i & 7)) & 1
+            if not bit:
+                raise ValueError("Value at index %d is null" % i)
+        return data[i]
+
     # -------- Interop (owned -> Arrow) --------
     def to_arrow(self):
         cdef size_t nbytes = buf_length(self.ptr) * buf_itemsize(self.ptr)

@@ -37,6 +37,14 @@ class ArrowVector(Vector):
         except Exception:
             return None
 
+    def __getitem__(self, i: int):
+        """Return the value at index i, or None if null."""
+        if i < 0 or i >= len(self._arr):
+            raise IndexError("Index out of bounds")
+        v = self._arr[i]
+        # pyarrow returns None for nulls
+        return v
+
     def to_arrow(self):
         return self._arr
 

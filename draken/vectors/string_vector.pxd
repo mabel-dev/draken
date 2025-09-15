@@ -5,10 +5,13 @@ from draken.core.buffers cimport DrakenVarBuffer
 from draken.vectors.vector cimport Vector
 
 cdef class StringVector(Vector):
+    cdef object _arrow_data_buf
+    cdef object _arrow_offs_buf
+    cdef object _arrow_null_buf
+
     cdef DrakenVarBuffer* ptr
     cdef bint owns_data
 
-    cpdef bytes get(self, Py_ssize_t i)
     cpdef int8_t[::1] equals(self, bytes value)
     cpdef uint64_t[::1] hash(self)
 

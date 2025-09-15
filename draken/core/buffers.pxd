@@ -1,16 +1,3 @@
-"""
-Draken buffer type declarations for fixed-width, variable-width, and array columns.
-
-This header exposes C structs and enums for columnar data buffers used in Draken:
-
-- DrakenType: Enum for supported data types (int, float, bool, string, array, etc.)
-- DrakenFixedBuffer: Struct for fixed-width columns (e.g., int64, float64)
-- DrakenVarBuffer: Struct for variable-width columns (e.g., UTF-8 strings)
-- DrakenArrayBuffer: Struct for array/list columns (with offsets and child values)
-
-These types are used to interface Cython and C code for efficient memory management and interoperability.
-"""
-
 from libc.stdint cimport int32_t
 from libc.stdint cimport uint8_t
 
