@@ -16,3 +16,4 @@ cdef class StringVector(Vector):
     cpdef uint64_t[::1] hash(self)
 
 cdef StringVector from_arrow(object array)
+cdef StringVector from_arrow_struct(object array)
