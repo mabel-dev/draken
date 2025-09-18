@@ -46,7 +46,7 @@ skips = ["B101", "B105", "B324", "B608"]
 # B608 - Hardcoded SQL
 
 [build-system]
-requires = ["setuptools>=42", "wheel", "cython"]
+requires = ["setuptools>=61", "wheel", "cython"]
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
