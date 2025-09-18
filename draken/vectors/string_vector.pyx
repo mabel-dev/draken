@@ -282,3 +282,60 @@ cdef StringVector from_arrow_struct(object array):
         ptr.offsets[i+1] = offset
 
     return vec
+
+#################################
+
+cpdef StringVector uppercase(StringVector input):
+    """
+    Return a new StringVector with all non-null values uppercased.
+    """
+    cdef DrakenVarBuffer* in_ptr = input.ptr
+    cdef Py_ssize_t i, n = in_ptr.length
+    cdef int32_t start, end, length
+
+    # Estimate total bytes (uppercased values won't be longer)
+    cdef int32_t total_bytes = in_ptr.offsets[n]
+
+    # Allocate new buffer
+    cdef StringVector result = StringVector(n, total_bytes)
+    cdef DrakenVarBuffer* out_ptr = result.ptr
+
+    cdef char* in_data = <char*>in_ptr.data
+    cdef char* out_data = <char*>out_ptr.data
+    cdef int32_t* out_offsets = out_ptr.offsets
+    cdef int32_t offset = 0
+    out_offsets[0] = 0
+
+    cdef char* src
+    cdef char ch
+    cdef int j
+
+    for i in range(n):
+        if in_ptr.null_bitmap != NULL and ((in_ptr.null_bitmap[i >> 3] >> (i & 7)) & 1) == 0:
+            # Set null bit
+            if out_ptr.null_bitmap == NULL:
+                out_ptr.null_bitmap = <uint8_t*> malloc((n + 7) // 8)
+                for j in range((n + 7) // 8):
+                    out_ptr.null_bitmap[j] = 0xFF  # Initially mark all as valid
+
+            out_ptr.null_bitmap[i >> 3] &= ~(1 << (i & 7))  # Mark as null
+            out_offsets[i + 1] = offset
+            continue
+
+        # Get string bounds
+        start = in_ptr.offsets[i]
+        end = in_ptr.offsets[i + 1]
+        length = end - start
+        src = in_data + start
+
+        for j in range(length):
+            ch = src[j]
+            if 97 <= ch <= 122:  # 'a'..'z'
+                out_data[offset + j] = ch - 32
+            else:
+                out_data[offset + j] = ch
+
+        offset += length
+        out_offsets[i + 1] = offset
+
+    return result

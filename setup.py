@@ -64,12 +64,12 @@ print(f"\033[38;2;255;85;85mStatus:\033[0m {_status}", "(rc)" if RELEASE_CANDIDA
 with open("README.md", mode="r", encoding="UTF8") as rm:
     long_description = rm.read()
 
-try:
-    with open("requirements.txt", "r") as f:
-        required = f.read().splitlines()
-except:
-    with open(f"{LIBRARY}.egg-info/requires.txt", "r") as f:
-        required = f.read().splitlines()
+#try:
+#    with open("requirements.txt", "r") as f:
+#        required = f.read().splitlines()
+#except:
+#    with open(f"{LIBRARY}.egg-info/requires.txt", "r") as f:
+#        required = f.read().splitlines()
 
 extensions = [
 
@@ -138,7 +138,7 @@ setup_config = {
     "packages": find_packages(include=[LIBRARY, f"{LIBRARY}.*"]),
     "python_requires": ">=3.9",
     "url": "https://github.com/mabel-dev/draken/",
-    "install_requires": required,
+#    "install_requires": required,
     "ext_modules": cythonize(extensions),
     "package_data": {
         "": ["*.pyx", "*.pxd"],

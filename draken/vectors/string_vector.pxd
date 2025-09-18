@@ -17,3 +17,5 @@ cdef class StringVector(Vector):
 
 cdef StringVector from_arrow(object array)
 cdef StringVector from_arrow_struct(object array)
+
+cpdef StringVector uppercase(StringVector input)
