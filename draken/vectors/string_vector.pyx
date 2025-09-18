@@ -19,6 +19,7 @@ This module provides:
 import pyarrow
 
 from cpython.mem cimport PyMem_Malloc
+from cpython.bytes cimport PyBytes_AS_STRING
 from cpython.bytes cimport PyBytes_FromStringAndSize
 from libc.stdint cimport int32_t
 from libc.stdint cimport intptr_t
@@ -26,6 +27,7 @@ from libc.stdint cimport uint64_t
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc
 from libc.string cimport memcmp
+from libc.string cimport memcpy
 
 from draken.core.buffers cimport DrakenVarBuffer
 from draken.core.buffers cimport DRAKEN_STRING
@@ -33,6 +35,7 @@ from draken.core.var_vector cimport alloc_var_buffer
 from draken.core.var_vector cimport buf_dtype
 from draken.core.var_vector cimport free_var_buffer
 from draken.vectors.vector cimport Vector
+
 
 # Constant for null hashes
 cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
@@ -207,3 +210,132 @@ cdef StringVector from_arrow(object array):
 
     vec.ptr.type = DRAKEN_STRING
     return vec
+
+cdef inline bint is_null(uint8_t* bitmap, Py_ssize_t i):
+    """Check if row i is null, given Arrow-style bitmap (1=valid, 0=null)."""
+    if bitmap == NULL:
+        return False
+    return not ((bitmap[i >> 3] >> (i & 7)) & 1)
+
+cdef StringVector from_arrow_struct(object array):
+    """
+    Convert an Arrow StructArray into a StringVector of JSON strings.
+    Each row becomes {"field": value, ...}
+    """
+    cdef Py_ssize_t n = len(array)
+    cdef list field_names = [f.name for f in array.type]
+    cdef int nfields = len(field_names)
+    cdef Py_ssize_t nb_size
+
+    # crude capacity guess: 64 bytes per row
+    cdef StringVector vec = StringVector(n, n * 64, False)
+    vec.owns_data = True
+    cdef DrakenVarBuffer* ptr = vec.ptr
+
+    cdef object bufs = array.buffers()
+    cdef intptr_t nb_addr
+    cdef uint8_t* parent_null_bitmap = NULL
+    if bufs[0] is not None:
+        nb_addr = bufs[0].address
+        parent_null_bitmap = <uint8_t*> nb_addr
+
+        # allocate and copy null bitmap into Draken
+        nb_size = (n + 7) // 8
+        ptr.null_bitmap = <uint8_t*> malloc(nb_size)
+        if ptr.null_bitmap == NULL:
+            raise MemoryError()
+        memcpy(ptr.null_bitmap, parent_null_bitmap, nb_size)
+    else:
+        ptr.null_bitmap = NULL
+
+    cdef Py_ssize_t offset = 0
+    cdef Py_ssize_t i, j
+    cdef bytes json_bytes
+    cdef const char* jb_ptr
+
+    ptr.offsets[0] = 0
+
+    for i in range(n):
+        if is_null(parent_null_bitmap, i):
+            # just carry forward same offset (null row = empty string)
+            ptr.offsets[i+1] = offset
+            continue
+
+        # build JSON row as Python string for now
+        row_items = []
+        for j in range(nfields):
+            val = array.field(j)[i].as_py()
+            if val is None:
+                row_items.append(f'"{field_names[j]}": null')
+            elif isinstance(val, str):
+                # naive escaping
+                row_items.append(f'"{field_names[j]}": "{val}"')
+            else:
+                row_items.append(f'"{field_names[j]}": {val}')
+        json_str = "{" + ",".join(row_items) + "}"
+        json_bytes = json_str.encode("utf8")
+
+        jb_ptr = PyBytes_AS_STRING(json_bytes)
+        memcpy(<char*>ptr.data + offset, jb_ptr, len(json_bytes))
+
+        offset += len(json_bytes)
+        ptr.offsets[i+1] = offset
+
+    return vec
+
+#################################
+
+cpdef StringVector uppercase(StringVector input):
+    """
+    Return a new StringVector with all non-null values uppercased.
+    """
+    cdef DrakenVarBuffer* in_ptr = input.ptr
+    cdef Py_ssize_t i, n = in_ptr.length
+    cdef int32_t start, end, length
+
+    # Estimate total bytes (uppercased values won't be longer)
+    cdef int32_t total_bytes = in_ptr.offsets[n]
+
+    # Allocate new buffer
+    cdef StringVector result = StringVector(n, total_bytes)
+    cdef DrakenVarBuffer* out_ptr = result.ptr
+
+    cdef char* in_data = <char*>in_ptr.data
+    cdef char* out_data = <char*>out_ptr.data
+    cdef int32_t* out_offsets = out_ptr.offsets
+    cdef int32_t offset = 0
+    out_offsets[0] = 0
+
+    cdef char* src
+    cdef char ch
+    cdef int j
+
+    for i in range(n):
+        if in_ptr.null_bitmap != NULL and ((in_ptr.null_bitmap[i >> 3] >> (i & 7)) & 1) == 0:
+            # Set null bit
+            if out_ptr.null_bitmap == NULL:
+                out_ptr.null_bitmap = <uint8_t*> malloc((n + 7) // 8)
+                for j in range((n + 7) // 8):
+                    out_ptr.null_bitmap[j] = 0xFF  # Initially mark all as valid
+
+            out_ptr.null_bitmap[i >> 3] &= ~(1 << (i & 7))  # Mark as null
+            out_offsets[i + 1] = offset
+            continue
+
+        # Get string bounds
+        start = in_ptr.offsets[i]
+        end = in_ptr.offsets[i + 1]
+        length = end - start
+        src = in_data + start
+
+        for j in range(length):
+            ch = src[j]
+            if 97 <= ch <= 122:  # 'a'..'z'
+                out_data[offset + j] = ch - 32
+            else:
+                out_data[offset + j] = ch
+
+        offset += length
+        out_offsets[i + 1] = offset
+
+    return result

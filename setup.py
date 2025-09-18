@@ -1,8 +1,7 @@
 import os
 import platform
-from distutils.sysconfig import get_config_var
+from sysconfig import get_config_var
 
-import numpy
 from Cython.Build import cythonize
 from setuptools import Extension
 from setuptools import find_packages
@@ -58,18 +57,18 @@ COMPILER_DIRECTIVES = {"language_level": "3"}
 COMPILER_DIRECTIVES["profile"] = not RELEASE_CANDIDATE
 COMPILER_DIRECTIVES["linetrace"] = not RELEASE_CANDIDATE
 
-print(f"\033[38;2;255;85;85mBuilding Opteryx version:\033[0m {__version__}")
+print(f"\033[38;2;255;85;85mBuilding Draken version:\033[0m {__version__}")
 print(f"\033[38;2;255;85;85mStatus:\033[0m {_status}", "(rc)" if RELEASE_CANDIDATE else "")
 
 with open("README.md", mode="r", encoding="UTF8") as rm:
     long_description = rm.read()
 
-try:
-    with open("requirements.txt", "r") as f:
-        required = f.read().splitlines()
-except:
-    with open(f"{LIBRARY}.egg-info/requires.txt", "r") as f:
-        required = f.read().splitlines()
+#try:
+#    with open("requirements.txt", "r") as f:
+#        required = f.read().splitlines()
+#except:
+#    with open(f"{LIBRARY}.egg-info/requires.txt", "r") as f:
+#        required = f.read().splitlines()
 
 extensions = [
 
@@ -138,7 +137,7 @@ setup_config = {
     "packages": find_packages(include=[LIBRARY, f"{LIBRARY}.*"]),
     "python_requires": ">=3.9",
     "url": "https://github.com/mabel-dev/draken/",
-    "install_requires": required,
+#    "install_requires": required,
     "ext_modules": cythonize(extensions),
     "package_data": {
         "": ["*.pyx", "*.pxd"],

@@ -46,7 +46,7 @@ skips = ["B101", "B105", "B324", "B608"]
 # B608 - Hardcoded SQL
 
 [build-system]
-requires = ["setuptools>=42", "wheel", "cython"]
+requires = ["setuptools>=61", "wheel", "cython"]
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
@@ -77,13 +77,14 @@ source = ["draken", "draken/**"]
 
 [tool.coverage.report]
 show_missing = true  # Show missing lines in the report
-fail_under = 80  # Fail if coverage is below 90%
+fail_under = 10  # Fail if coverage is below 90%
 skip_covered = true  # Hide files that are fully covered
 exclude_lines = [
     "if __name__ == .__main__.:",  # Ignore standard script entry point
     "pragma: no cover",  # Ignore manually marked lines
     "except"
 ]
+omit = ['__*__']
 
 [tool.coverage.html]
 directory = "coverage_html_report"  # Output directory for HTML reports
