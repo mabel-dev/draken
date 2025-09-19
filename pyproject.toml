@@ -1,6 +1,5 @@
 [project]
 name = "Draken"
-version = "0.0.0"
 description = "Cython/Arrow Interop"
 dependencies = [
     "pyarrow"
@@ -9,6 +8,7 @@ requires-python = '>=3.11'
 readme = 'dynamic'
 authors = [{name='Justin Joyce', email='justin.joyce@joocer.com'}]
 maintainers = [{name='Justin Joyce', email='justin.joyce@joocer.com'}]
+dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
