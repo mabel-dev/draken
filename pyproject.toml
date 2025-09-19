@@ -1,6 +1,5 @@
 [project]
 name = "Draken"
-version = "0.0.0"
 description = "Cython/Arrow Interop"
 dependencies = [
     "pyarrow"
