@@ -63,7 +63,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install Python package dependencies
-        run: python -m pip install --upgrade cython wheel
+        run: python -m pip install --upgrade cython wheel setuptools
 
       - name: Install Rust aarch64-apple-darwin target
         run: rustup target add aarch64-apple-darwin
@@ -94,7 +94,7 @@ jobs:
         uses: actions/checkout@v4.1.7
 
       - name: Install Python package dependencies
-        run: python -m pip install --upgrade cython wheel
+        run: python -m pip install --upgrade cython wheel setuptools
 
       - name: Create source dist
         run: python setup.py sdist
