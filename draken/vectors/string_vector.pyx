@@ -66,15 +66,24 @@ cdef class StringVector(Vector):
 
     def to_arrow(self):
         """
-        Zero-copy conversion to Arrow StringArray
+        Zero-copy conversion to Arrow StringArray (bytes-based).
         """
-        cdef size_t n = self.ptr.length
-        data_buf = pyarrow.foreign_buffer(<intptr_t>self.ptr.data,
-                                          self.ptr.offsets[n])
-        offs_buf = pyarrow.foreign_buffer(<intptr_t>self.ptr.offsets,
-                                          (n + 1) * sizeof(int32_t))
-        return pyarrow.Array.from_buffers(pyarrow.string(), n,
-                                          [None, offs_buf, data_buf])
+        cdef DrakenVarBuffer* ptr = self.ptr
+        cdef size_t n = ptr.length
+
+        # Data buffer: all the concatenated string bytes
+        data_buf = pyarrow.foreign_buffer(<intptr_t>ptr.data, ptr.offsets[n])
+
+        # Offsets buffer: (n+1) * int32_t entries
+        offs_buf = pyarrow.foreign_buffer(<intptr_t>ptr.offsets, (n + 1) * sizeof(int32_t))
+
+        # Null bitmap buffer (optional)
+        if ptr.null_bitmap != NULL:
+            null_buf = pyarrow.foreign_buffer(<intptr_t>ptr.null_bitmap, (n + 7) // 8)
+        else:
+            null_buf = None
+
+        return pyarrow.Array.from_buffers(pyarrow.binary(), n, [null_buf, offs_buf, data_buf])
 
     def __getitem__(self, Py_ssize_t i) -> bytes:
         """
@@ -165,6 +174,36 @@ cdef class StringVector(Vector):
             buf[j] = h
 
         return <uint64_t[:n]> buf
+
+    cpdef list to_pylist(self):
+        """
+        Convert the StringVector into a Python list of str or None (for nulls).
+        """
+        cdef DrakenVarBuffer* ptr = self.ptr
+        cdef Py_ssize_t i, n = ptr.length
+        cdef list out = []
+        cdef int32_t start, end, nbytes
+        cdef char* base = <char*>ptr.data
+        cdef uint8_t byte, bit
+
+        if ptr.null_bitmap == NULL:
+            for i in range(n):
+                start = ptr.offsets[i]
+                end = ptr.offsets[i+1]
+                nbytes = end - start
+                out.append((<bytes>PyBytes_FromStringAndSize(base + start, nbytes)).decode("utf8"))
+        else:
+            for i in range(n):
+                byte = ptr.null_bitmap[i >> 3]
+                bit = (byte >> (i & 7)) & 1
+                if not bit:
+                    out.append(None)
+                else:
+                    start = ptr.offsets[i]
+                    end = ptr.offsets[i+1]
+                    nbytes = end - start
+                    out.append((<bytes>PyBytes_FromStringAndSize(base + start, nbytes)).decode("utf8"))
+        return out
 
     def __str__(self):
         cdef list vals = []

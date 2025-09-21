@@ -90,6 +90,20 @@ extensions = [
         depends=["draken/core/buffers.h"],
     ),
     Extension(
+        name="draken.vectors.bool_vector",
+        sources=["draken/vectors/bool_vector.pyx"],
+        extra_compile_args=C_COMPILE_FLAGS,
+        include_dirs=include_dirs + ["draken"],
+        depends=["draken/core/buffers.h"],
+    ),
+    Extension(
+        name="draken.vectors.float64_vector",
+        sources=["draken/vectors/float64_vector.pyx"],
+        extra_compile_args=C_COMPILE_FLAGS,
+        include_dirs=include_dirs + ["draken"],
+        depends=["draken/core/buffers.h"],
+    ),
+    Extension(
         name="draken.vectors.int64_vector",
         sources=["draken/vectors/int64_vector.pyx"],
         extra_compile_args=C_COMPILE_FLAGS,

@@ -165,3 +165,4 @@ testdata/hits/*.parquet
 testdata/**/*.parquet
 **/.DS_Store
 
+hits/**

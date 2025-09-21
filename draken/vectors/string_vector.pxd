@@ -15,6 +15,8 @@ cdef class StringVector(Vector):
     cpdef int8_t[::1] equals(self, bytes value)
     cpdef uint64_t[::1] hash(self)
 
+    cpdef list to_pylist(self)
+
 cdef StringVector from_arrow(object array)
 cdef StringVector from_arrow_struct(object array)
 
