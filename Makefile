@@ -15,7 +15,7 @@ update:
 coverage:
 	python -m pip install --quiet --upgrade pytest coverage
 	python -m coverage run -m pytest --color=yes
-	python -m coverage report --include=orso/** --fail-under=60 -m
+	python -m coverage report --include=draken/** --fail-under=60 -m
 
 test:
 	python -m pip install --quiet --upgrade pytest
