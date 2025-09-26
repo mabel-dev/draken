@@ -6,6 +6,19 @@
 # cython: wraparound=False
 # cython: boundscheck=False
 
+"""
+Base Vector class for Draken columnar data structures.
+
+This module provides the abstract base class for all Vector implementations
+in Draken. Vectors are columnar data containers that provide:
+- Zero-copy interoperability with Apache Arrow
+- Efficient memory layout for analytical workloads
+- Type-specific optimized implementations
+
+The Vector class defines the common interface that all concrete vector
+types (Int64Vector, StringVector, etc.) implement.
+"""
+
 from draken.interop.arrow cimport vector_from_arrow
 
 cdef class Vector:

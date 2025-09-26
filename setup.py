@@ -1,3 +1,15 @@
+"""Setup script for the Draken package.
+
+This script handles the compilation and installation of the Draken Cython/Arrow
+interoperability library. It:
+- Configures Cython extensions for all vector types and core components
+- Sets up platform-specific compilation flags and optimizations
+- Manages dependencies and build requirements
+- Configures SIMD support for optimal performance
+
+The build process creates optimized Cython extensions that provide zero-copy
+interoperability with Apache Arrow for high-performance columnar data processing.
+"""
 import os
 import platform
 from sysconfig import get_config_var

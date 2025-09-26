@@ -1,3 +1,9 @@
+"""Version information tests for Draken.
+
+This module tests that the Draken package properly exposes version information
+including the version string, build number, and author information. These
+attributes are essential for package identification and debugging.
+"""
 import os
 import sys
 

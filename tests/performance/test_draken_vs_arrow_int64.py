@@ -1,4 +1,18 @@
 
+"""Performance comparison tests between Draken and Arrow for Int64 operations.
+
+This module contains benchmarks that compare the performance of Draken's
+Int64Vector operations against equivalent PyArrow operations. The tests
+validate that Draken's optimized implementations achieve at least 2x
+better performance than Arrow for common comparison operations.
+
+Tests include:
+- Less than comparisons
+- Greater than comparisons  
+- Equality comparisons
+- Not equal comparisons
+"""
+
 import sys
 
 sys.path.insert(1, "/".join([str(p) for p in sys.path[0].split("/")[:-2]]))

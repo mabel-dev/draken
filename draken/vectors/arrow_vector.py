@@ -1,3 +1,18 @@
+"""ArrowVector: Fallback Vector implementation using PyArrow arrays.
+
+This module provides ArrowVector, a Vector implementation that delegates
+all operations to PyArrow's compute functions. It serves as a fallback
+for data types that don't yet have optimized native Draken implementations.
+
+The ArrowVector class provides:
+- Full Vector API compatibility
+- Delegation to PyArrow compute functions
+- Support for all PyArrow data types
+- Seamless integration with Draken's type system
+
+This allows Draken to handle any Arrow-compatible data type while maintaining
+a consistent API, even before native implementations are developed.
+"""
 import pyarrow
 import pyarrow.compute as pc
 

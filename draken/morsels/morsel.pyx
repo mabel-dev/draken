@@ -5,6 +5,20 @@
 # cython: wraparound=False
 # cython: infer_types=True
 
+"""
+Morsel: Batch data container for columnar processing in Draken.
+
+This module provides the Morsel class which represents a batch of columnar data
+similar to Arrow's RecordBatch but optimized for Draken's internal processing.
+Morsels contain multiple Vector columns and provide efficient batch operations
+for analytical workloads.
+
+The module includes:
+- Morsel class for managing collections of Vector columns
+- DrakenTypeInt helper for debugging type information
+- Integration with Draken's core buffer management system
+"""
+
 from cpython.bytes cimport PyBytes_FromStringAndSize
 from cpython.mem cimport PyMem_Free
 from cpython.mem cimport PyMem_Malloc
