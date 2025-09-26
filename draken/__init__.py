@@ -1,3 +1,15 @@
+"""Draken: Cython/Arrow Interoperability Library.
+
+This package provides efficient columnar data structures and algorithms
+with zero-copy interoperability with Apache Arrow. It includes:
+- Vector classes for different data types (int64, float64, string, bool)
+- Morsel data structures for batch processing
+- Arrow integration for seamless data exchange
+
+Main exports:
+- Vector: Base vector class for columnar data
+- Morsel: Batch data processing container
+"""
 from draken.__version__ import __author__
 from draken.__version__ import __build__
 from draken.__version__ import __version__

@@ -1,3 +1,9 @@
+"""Build counter utility for the Draken project.
+
+This script increments the build number in the __version__.py file and commits
+the change to version control. It reads the current build number, increments it,
+updates the version file, and stages the changes for commit.
+"""
 import subprocess
 
 __build__ = None

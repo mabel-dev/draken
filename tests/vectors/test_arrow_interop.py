@@ -1,3 +1,15 @@
+"""Arrow interoperability tests for Draken Vector types.
+
+This module tests the zero-copy interoperability between Draken Vector types
+and Apache Arrow arrays. It validates that:
+- Draken can wrap Arrow arrays without copying data
+- Operations on Draken vectors match Arrow compute results
+- Round-trip conversion (Arrow -> Draken -> Arrow) preserves data integrity
+- All supported data types (bool, int64, float64, binary) work correctly
+
+The tests use parametrized test cases to cover different data types and
+null value scenarios.
+"""
 import sys
 
 sys.path.insert(1, "/".join([str(p) for p in sys.path[0].split("/")[:-2]]))
