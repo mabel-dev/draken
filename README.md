@@ -21,6 +21,14 @@ DRAKEN serves as the internal container format for [Opteryx](https://github.com/
 
 **What makes DRAKEN unique**: It's not a dataframe library like Polars or DuckDB, nor a general API like PyArrow — it's a purpose-built execution container designed specifically for high-performance columnar data processing in Python database engines.
 
+## Development Status
+
+🚧 **Alpha Development**: DRAKEN is currently in active development and not yet ready for production use. The API may change between versions, and some features are still being implemented.
+
+- Current version: 0.0.1-alpha
+- Status: Core vector types and Arrow interop implemented
+- Target: Production-ready beta in Q2 2025
+
 ## Features
 
 - **Type-specialized vectors**: `Int64Vector`, `Float64Vector`, `StringVector`, `BoolVector`
@@ -32,13 +40,9 @@ DRAKEN serves as the internal container format for [Opteryx](https://github.com/
 
 ## Installation
 
-### From PyPI (Recommended)
+> **Note**: DRAKEN is currently in alpha development. PyPI packages are not yet available.
 
-```bash
-pip install draken
-```
-
-### From Source
+### From Source (Recommended)
 
 ```bash
 git clone https://github.com/mabel-dev/draken.git
@@ -51,8 +55,16 @@ pip install -e .
 ```bash
 git clone https://github.com/mabel-dev/draken.git
 cd draken
+
+# Create and activate virtual environment (recommended)
+python -m venv draken-env
+source draken-env/bin/activate  # On Windows: draken-env\Scripts\activate
+
+# Install development dependencies
 pip install -e ".[dev]"
-make compile  # Build Cython extensions
+
+# Build Cython extensions
+make compile
 ```
 
 ## Quick Start
@@ -148,6 +160,10 @@ DRAKEN is designed for high-performance scenarios where PyArrow's generality bec
 ### Building
 
 ```bash
+# Create virtual environment (recommended to avoid conflicts)
+python -m venv draken-dev
+source draken-dev/bin/activate  # On Windows: draken-dev\Scripts\activate
+
 # Install development dependencies
 pip install -e ".[dev]"
 

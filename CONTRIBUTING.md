@@ -20,17 +20,27 @@ Thank you for your interest in contributing to DRAKEN! This document provides gu
    cd draken
    ```
 
-3. Install development dependencies:
+3. Create and activate a virtual environment (recommended):
+   ```bash
+   python -m venv draken-dev
+   source draken-dev/bin/activate  # On Windows: draken-dev\Scripts\activate
+   ```
+
+4. Install development dependencies:
    ```bash
    pip install -e ".[dev]"
    ```
 
-4. Compile the Cython extensions:
+5. Compile the Cython extensions:
+   ```bash
+5. Compile the Cython extensions:
    ```bash
    make compile
    ```
 
-5. Run the tests to verify everything works:
+6. Run the tests to verify everything works:
+   ```bash
+6. Run the tests to verify everything works:
    ```bash
    make test
    ```
