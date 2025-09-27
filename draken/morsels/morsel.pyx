@@ -22,10 +22,17 @@ The module includes:
 from cpython.bytes cimport PyBytes_FromStringAndSize
 from cpython.mem cimport PyMem_Free
 from cpython.mem cimport PyMem_Malloc
-from libc.string cimport strlen
+from libc.string cimport strlen, strcmp
+from libc.stdint cimport int32_t, uint8_t
 
 from draken.vectors.vector cimport Vector
 from draken.core.buffers cimport DrakenType, DrakenMorsel
+from draken.core.buffers cimport DrakenFixedBuffer, DrakenVarBuffer
+
+# Import specific vector types for optimized take operations
+from draken.vectors.int64_vector cimport Int64Vector
+from draken.vectors.float64_vector cimport Float64Vector
+from draken.vectors.bool_vector cimport BoolVector
 
 # Python helper: int subclass for DrakenType enum debugging
 cdef class DrakenTypeInt(int):
@@ -56,11 +63,6 @@ cdef class Morsel:
     cdef DrakenMorsel* ptr
     cdef list _encoded_names
     cdef list _columns
-
-    def __cinit__(self):
-        self.ptr = NULL
-        self._encoded_names = None
-        self._columns = None
 
     def __dealloc__(self):
         if self.ptr is not NULL:
@@ -153,127 +155,219 @@ cdef class Morsel:
     def __repr__(self):
         return f"<Morsel: {self.ptr.num_rows} rows x {self.ptr.num_columns} columns>"
 
+    # High-performance C/Cython implementations
     def take(self, indices):
         """
-        Take rows by indices, similar to pyarrow.Table.take.
-
+        Take rows by indices with high-performance C/Cython implementation.
+        
         Args:
             indices: List or array of row indices to select
-
+            
         Returns:
             Morsel: New Morsel with selected rows
         """
-        import pyarrow as pa
-
-        # First convert this morsel to arrow (bypassing potential vector issues)
-        arrow_table = self._to_arrow_safe()
-
-        # Use pyarrow's take method
-        taken_table = arrow_table.take(indices)
-
-        # Create new Morsel from the taken table
-        return Morsel.from_arrow(taken_table)
-
+        cdef int32_t[::1] indices_view
+        cdef int i, n_indices, n_columns = self.ptr.num_columns
+        cdef Morsel result = Morsel()
+        cdef Vector src_vec, dst_vec
+        cdef DrakenType vec_type
+        
+        # Convert indices to memoryview for efficient access
+        import numpy as np
+        if not hasattr(indices, '__len__'):
+            indices = [indices]
+        
+        # Handle PyArrow arrays
+        if hasattr(indices, 'to_numpy'):
+            indices_array = indices.to_numpy().astype(np.int32)
+        else:
+            indices_array = np.asarray(indices, dtype=np.int32)
+        
+        # Ensure the array is writable for memoryview
+        if not indices_array.flags.writeable:
+            indices_array = indices_array.copy()
+            
+        indices_view = indices_array
+        n_indices = indices_array.shape[0]
+        
+        # Initialize result morsel
+        result._columns = [None] * n_columns
+        result._encoded_names = [None] * n_columns
+        result.ptr = <DrakenMorsel*> PyMem_Malloc(sizeof(DrakenMorsel))
+        result.ptr.num_columns = n_columns
+        result.ptr.num_rows = n_indices
+        result.ptr.columns = <void**> PyMem_Malloc(sizeof(void*) * n_columns)
+        result.ptr.column_names = <const char**> PyMem_Malloc(sizeof(const char*) * n_columns)
+        result.ptr.column_types = <DrakenType*> PyMem_Malloc(sizeof(DrakenType) * n_columns)
+        
+        # Take from each column using vector's native take method
+        for i in range(n_columns):
+            src_vec = <Vector>self.ptr.columns[i]
+            vec_type = self.ptr.column_types[i]
+            
+            # Use the vector's optimized take method if available
+            if hasattr(src_vec, 'take'):
+                dst_vec = src_vec.take(indices_view)
+            else:
+                # Fallback: create new vector manually for types without take
+                dst_vec = self._take_vector_fallback(src_vec, indices_view, vec_type)
+            
+            result._columns[i] = dst_vec
+            result._encoded_names[i] = self._encoded_names[i]
+            result.ptr.columns[i] = <void*>dst_vec
+            result.ptr.column_types[i] = vec_type
+            result.ptr.column_names[i] = self.ptr.column_names[i]
+        
+        return result
+    
     def select(self, columns):
         """
-        Select columns by name, similar to pyarrow.Table.select.
-
+        Select columns by name with high-performance C/Cython implementation.
+        
         Args:
-            columns: List of column names to select, or single column name string
-
+            columns: List of column names to select, or single column name
+            
         Returns:
             Morsel: New Morsel with selected columns
         """
-        import pyarrow as pa
-
-        # First convert this morsel to arrow (bypassing potential vector issues)
-        arrow_table = self._to_arrow_safe()
-
-        # Ensure columns is a list for pyarrow compatibility
+        cdef int i, j, n_selected
+        cdef list column_indices = []
+        cdef bytes col_name
+        cdef Morsel result = Morsel()
+        cdef Vector vec
+        
+        # Normalize columns to list
         if isinstance(columns, str):
             columns = [columns]
-
-        # Use pyarrow's select method
-        selected_table = arrow_table.select(columns)
-
-        # Create new Morsel from the selected table
-        return Morsel.from_arrow(selected_table)
-
+        elif isinstance(columns, bytes):
+            columns = [columns]
+        
+        # Find column indices efficiently
+        for col in columns:
+            if isinstance(col, str):
+                col_name = col.encode('utf-8')
+            else:
+                col_name = col
+            
+            for i in range(self.ptr.num_columns):
+                if strcmp(self.ptr.column_names[i], col_name) == 0:
+                    column_indices.append(i)
+                    break
+            else:
+                raise KeyError(f"Column '{col}' not found")
+        
+        n_selected = len(column_indices)
+        
+        # Initialize result morsel
+        result._columns = [None] * n_selected
+        result._encoded_names = [None] * n_selected
+        result.ptr = <DrakenMorsel*> PyMem_Malloc(sizeof(DrakenMorsel))
+        result.ptr.num_columns = n_selected
+        result.ptr.num_rows = self.ptr.num_rows
+        result.ptr.columns = <void**> PyMem_Malloc(sizeof(void*) * n_selected)
+        result.ptr.column_names = <const char**> PyMem_Malloc(sizeof(const char*) * n_selected)
+        result.ptr.column_types = <DrakenType*> PyMem_Malloc(sizeof(DrakenType) * n_selected)
+        
+        # Copy selected columns
+        for j, i in enumerate(column_indices):
+            vec = <Vector>self.ptr.columns[i]
+            result._columns[j] = vec
+            result._encoded_names[j] = self._encoded_names[i]
+            result.ptr.columns[j] = <void*>vec
+            result.ptr.column_types[j] = self.ptr.column_types[i]
+            result.ptr.column_names[j] = self.ptr.column_names[i]
+        
+        return result
+    
     def rename(self, names):
         """
-        Rename columns, similar to pyarrow.Table.rename_columns.
-
+        Rename columns with high-performance C/Cython implementation.
+        
         Args:
             names: List of new column names or dict mapping old->new names
-
+            
         Returns:
             Morsel: New Morsel with renamed columns
         """
-        import pyarrow as pa
-
-        # First convert this morsel to arrow (bypassing potential vector issues)
-        arrow_table = self._to_arrow_safe()
-
+        cdef int i, n_columns = self.ptr.num_columns
+        cdef list new_names = []
+        cdef bytes encoded_name
+        cdef Morsel result = Morsel()
+        cdef Vector vec
+        
+        # Handle different name formats
         if isinstance(names, dict):
-            # Handle dict mapping by creating a list of names
-            current_names = arrow_table.column_names
-            new_names = [names.get(name, name) for name in current_names]
-            renamed_table = arrow_table.rename_columns(new_names)
+            # Dict mapping old->new names
+            for i in range(n_columns):
+                old_name = self.ptr.column_names[i].decode('utf-8')
+                new_names.append(names.get(old_name, old_name))
         else:
-            # Handle list of names directly
-            renamed_table = arrow_table.rename_columns(names)
-
-        # Create new Morsel from the renamed table
-        return Morsel.from_arrow(renamed_table)
-
+            # List of new names
+            if len(names) != n_columns:
+                raise ValueError(f"Expected {n_columns} names, got {len(names)}")
+            new_names = list(names)
+        
+        # Initialize result morsel
+        result._columns = [None] * n_columns
+        result._encoded_names = [None] * n_columns
+        result.ptr = <DrakenMorsel*> PyMem_Malloc(sizeof(DrakenMorsel))
+        result.ptr.num_columns = n_columns
+        result.ptr.num_rows = self.ptr.num_rows
+        result.ptr.columns = <void**> PyMem_Malloc(sizeof(void*) * n_columns)
+        result.ptr.column_names = <const char**> PyMem_Malloc(sizeof(const char*) * n_columns)
+        result.ptr.column_types = <DrakenType*> PyMem_Malloc(sizeof(DrakenType) * n_columns)
+        
+        # Copy columns with new names
+        for i in range(n_columns):
+            vec = <Vector>self.ptr.columns[i]
+            encoded_name = new_names[i].encode('utf-8')
+            
+            result._columns[i] = vec
+            result._encoded_names[i] = encoded_name
+            result.ptr.columns[i] = <void*>vec
+            result.ptr.column_types[i] = self.ptr.column_types[i]
+            result.ptr.column_names[i] = <const char*>encoded_name
+        
+        return result
+    
     def to_arrow(self):
         """
-        Convert Morsel back to pyarrow.Table.
-
+        Convert Morsel to Arrow Table with high-performance implementation.
+        
         Returns:
             pyarrow.Table: Table with same data and column names
         """
-        return self._to_arrow_safe()
-
-    def _to_arrow_safe(self):
-        """
-        Reconstruct arrow table by building it column by column using row access.
-        This is slower but guarantees correctness by avoiding the corrupted vector conversions.
-        """
         import pyarrow as pa
-
+        
         # Get column names as strings
-        column_names = [name.decode('utf-8') if isinstance(name, bytes) else name
-                        for name in self.column_names]
-
-        # Build data row by row to avoid vector conversion issues
-        columns_data = [[] for _ in range(self.ptr.num_columns)]
-
-        # Extract data row by row
-        cdef int row, col
-        for row in range(self.ptr.num_rows):
-            row_data = self[row]  # Get row as tuple
-            for col in range(len(row_data)):
-                columns_data[col].append(row_data[col])
-
-        # Create pyarrow arrays from the extracted data
+        column_names = []
+        cdef int i
+        for i in range(self.ptr.num_columns):
+            column_names.append(self.ptr.column_names[i].decode('utf-8'))
+        
+        # Get arrow arrays from vectors using their native to_arrow methods
         arrow_columns = []
-        for col_data in columns_data:
-            try:
-                arrow_columns.append(pa.array(col_data))
-            except Exception as e:
-                # If we can't create the array, try with explicit null handling
-                processed_data = []
-                for item in col_data:
-                    if isinstance(item, bytes):
-                        try:
-                            # Try to decode bytes to string
-                            processed_data.append(item.decode('utf-8'))
-                        except UnicodeDecodeError:
-                            processed_data.append(None)
-                    else:
-                        processed_data.append(item)
-                arrow_columns.append(pa.array(processed_data))
-
-        # Create and return the table
+        cdef Vector vec
+        for i in range(self.ptr.num_columns):
+            vec = <Vector>self.ptr.columns[i]
+            arrow_columns.append(vec.to_arrow())
+        
         return pa.table(arrow_columns, names=column_names)
+    
+    cdef Vector _take_vector_fallback(self, Vector vec, int32_t[::1] indices, DrakenType vec_type):
+        """
+        Fallback implementation for vectors without native take method.
+        This is used for string vectors and other types that don't have optimized take.
+        """
+        # This is a simplified fallback - in practice, you'd implement 
+        # optimized versions for each vector type
+        import numpy as np
+        import pyarrow as pa
+        
+        # Convert to arrow, take, and convert back
+        arrow_array = vec.to_arrow()
+        indices_array = pa.array(np.asarray(indices), type=pa.int32())
+        taken_array = pa.compute.take(arrow_array, indices_array)
+        
+        # Create new vector from taken array
+        return Vector.from_arrow(taken_array)
