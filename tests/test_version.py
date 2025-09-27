@@ -4,10 +4,10 @@ This module tests that the Draken package properly exposes version information
 including the version string, build number, and author information. These
 attributes are essential for package identification and debugging.
 """
-import os
 import sys
+from pathlib import Path
 
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import draken
 

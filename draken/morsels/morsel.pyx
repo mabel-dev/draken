@@ -22,7 +22,8 @@ The module includes:
 from cpython.bytes cimport PyBytes_FromStringAndSize
 from cpython.mem cimport PyMem_Free
 from cpython.mem cimport PyMem_Malloc
-from libc.string cimport strlen
+from libc.string cimport strlen, strcmp
+from libc.stdint cimport int32_t
 
 from draken.vectors.vector cimport Vector
 from draken.core.buffers cimport DrakenType, DrakenMorsel
@@ -147,3 +148,248 @@ cdef class Morsel:
 
     def __repr__(self):
         return f"<Morsel: {self.ptr.num_rows} rows x {self.ptr.num_columns} columns>"
+
+    # High-performance C/Cython implementations
+    def copy(self, columns=None, mask=None):
+        """
+        Create a copy of this Morsel, optionally filtering columns and rows.
+        
+        Args:
+            columns: List of column names to include (None = all columns)  
+            mask: Boolean mask or list of row indices (None = all rows)
+            
+        Returns:
+            Morsel: New copied Morsel with optional filtering
+        """
+        cdef Morsel result
+        
+        # If no filtering, do a simple full copy
+        if columns is None and mask is None:
+            return self._full_copy()
+        
+        # Apply column filtering first if specified
+        if columns is not None:
+            result = self._full_copy()
+            result._select_inplace(columns)
+        else:
+            result = self._full_copy()
+        
+        # Apply row filtering (mask) if specified
+        if mask is not None:
+            result._take_inplace(mask)
+            
+        return result
+    
+    cdef Morsel _full_copy(self):
+        """Create a complete copy of this Morsel."""
+        cdef int i, n_columns = self.ptr.num_columns
+        cdef Morsel result = Morsel()
+        cdef Vector vec
+        
+        # Initialize result morsel
+        result._columns = [None] * n_columns
+        result._encoded_names = [None] * n_columns
+        result.ptr = <DrakenMorsel*> PyMem_Malloc(sizeof(DrakenMorsel))
+        result.ptr.num_columns = n_columns
+        result.ptr.num_rows = self.ptr.num_rows
+        result.ptr.columns = <void**> PyMem_Malloc(sizeof(void*) * n_columns)
+        result.ptr.column_names = <const char**> PyMem_Malloc(sizeof(const char*) * n_columns)
+        result.ptr.column_types = <DrakenType*> PyMem_Malloc(sizeof(DrakenType) * n_columns)
+        
+        # Copy all columns (vectors are referenced, not deep-copied for performance)
+        for i in range(n_columns):
+            vec = <Vector>self.ptr.columns[i]
+            result._columns[i] = vec
+            result._encoded_names[i] = self._encoded_names[i]
+            result.ptr.columns[i] = <void*>vec
+            result.ptr.column_types[i] = self.ptr.column_types[i]
+            result.ptr.column_names[i] = self.ptr.column_names[i]
+        
+        return result
+
+    def take(self, indices):
+        """
+        Take rows by indices (IN-PLACE operation - modifies this Morsel).
+        
+        Args:
+            indices: List or array of row indices to select
+            
+        Returns:
+            Morsel: Self (for method chaining)
+        """
+        self._take_inplace(indices)
+        return self
+    
+    cdef void _take_inplace(self, indices):
+        """Internal in-place take implementation."""
+        cdef int32_t[::1] indices_view
+        cdef int i, n_indices, n_columns = self.ptr.num_columns
+        cdef Vector src_vec, dst_vec
+        
+        # Convert indices to array without NumPy
+        if not hasattr(indices, '__len__'):
+            indices = [indices]
+        
+        # Handle PyArrow arrays by converting to list
+        if hasattr(indices, 'to_pylist'):
+            indices = indices.to_pylist()
+        elif hasattr(indices, 'tolist'):  # Handle numpy arrays if passed in
+            indices = indices.tolist()
+        
+        # Convert to C array
+        n_indices = len(indices)
+        cdef int32_t* indices_ptr = <int32_t*>PyMem_Malloc(n_indices * sizeof(int32_t))
+        if indices_ptr == NULL:
+            raise MemoryError()
+            
+        try:
+            for i in range(n_indices):
+                indices_ptr[i] = <int32_t>indices[i]
+            
+            # Create memoryview from C array
+            indices_view = <int32_t[:n_indices]>indices_ptr
+            
+            # Take from each column using vector's native take method
+            for i in range(n_columns):
+                src_vec = <Vector>self.ptr.columns[i]
+                
+                # All vector types should now have take method
+                dst_vec = src_vec.take(indices_view)
+                
+                # Replace the vector in-place
+                self._columns[i] = dst_vec
+                self.ptr.columns[i] = <void*>dst_vec
+            
+            # Update row count
+            self.ptr.num_rows = n_indices
+            
+        finally:
+            PyMem_Free(indices_ptr)
+
+    def select(self, columns):
+        """
+        Select columns by name (IN-PLACE operation - modifies this Morsel).
+        
+        Args:
+            columns: List of column names to select, or single column name
+            
+        Returns:
+            Morsel: Self (for method chaining)
+        """
+        self._select_inplace(columns)
+        return self
+    
+    cdef void _select_inplace(self, columns):
+        """Internal in-place select implementation."""
+        cdef int i, j, n_selected
+        cdef list column_indices = []
+        cdef bytes col_name
+        cdef Vector vec
+        
+        # Normalize columns to list
+        if isinstance(columns, str):
+            columns = [columns]
+        elif isinstance(columns, bytes):
+            columns = [columns]
+        
+        # Find column indices efficiently
+        for col in columns:
+            if isinstance(col, str):
+                col_name = col.encode('utf-8')
+            else:
+                col_name = col
+            
+            for i in range(self.ptr.num_columns):
+                if strcmp(self.ptr.column_names[i], col_name) == 0:
+                    column_indices.append(i)
+                    break
+            else:
+                raise KeyError(f"Column '{col}' not found")
+        
+        n_selected = len(column_indices)
+        
+        # Reallocate arrays for selected columns
+        cdef void** new_columns = <void**>PyMem_Malloc(sizeof(void*) * n_selected)
+        cdef const char** new_column_names = <const char**>PyMem_Malloc(sizeof(const char*) * n_selected)
+        cdef DrakenType* new_column_types = <DrakenType*>PyMem_Malloc(sizeof(DrakenType) * n_selected)
+        cdef list new_column_list = [None] * n_selected
+        cdef list new_encoded_names = [None] * n_selected
+        
+        # Copy selected columns
+        for j, i in enumerate(column_indices):
+            vec = <Vector>self.ptr.columns[i]
+            new_column_list[j] = vec
+            new_encoded_names[j] = self._encoded_names[i]
+            new_columns[j] = <void*>vec
+            new_column_types[j] = self.ptr.column_types[i]
+            new_column_names[j] = self.ptr.column_names[i]
+        
+        # Free old arrays and replace with new ones
+        PyMem_Free(self.ptr.columns)
+        PyMem_Free(self.ptr.column_names)
+        PyMem_Free(self.ptr.column_types)
+        
+        self.ptr.columns = new_columns
+        self.ptr.column_names = new_column_names
+        self.ptr.column_types = new_column_types
+        self.ptr.num_columns = n_selected
+        self._columns = new_column_list
+        self._encoded_names = new_encoded_names
+
+    def rename(self, names):
+        """
+        Rename columns (IN-PLACE operation - modifies this Morsel).
+        
+        Args:
+            names: List of new column names or dict mapping old->new names
+            
+        Returns:
+            Morsel: Self (for method chaining)
+        """
+        cdef int i, n_columns = self.ptr.num_columns
+        cdef list new_names = []
+        cdef bytes encoded_name
+        
+        # Handle different name formats
+        if isinstance(names, dict):
+            # Dict mapping old->new names
+            for i in range(n_columns):
+                old_name = self.ptr.column_names[i].decode('utf-8')
+                new_names.append(names.get(old_name, old_name))
+        else:
+            # List of new names
+            if len(names) != n_columns:
+                raise ValueError(f"Expected {n_columns} names, got {len(names)}")
+            new_names = list(names)
+        
+        # Update column names in-place
+        for i in range(n_columns):
+            encoded_name = new_names[i].encode('utf-8')
+            self._encoded_names[i] = encoded_name
+            self.ptr.column_names[i] = <const char*>encoded_name
+        
+        return self
+
+    def to_arrow(self):
+        """
+        Convert Morsel to Arrow Table with high-performance implementation.
+
+        Returns:
+            pyarrow.Table: Table with same data and column names
+        """
+        import pyarrow as pa
+
+        # Get column names as strings
+        column_names = []
+        cdef int i
+        for i in range(self.ptr.num_columns):
+            column_names.append(self.ptr.column_names[i].decode('utf-8'))
+
+        # Get arrow arrays from vectors using their native to_arrow methods
+        arrow_columns = []
+        cdef Vector vec
+        for i in range(self.ptr.num_columns):
+            vec = <Vector>self.ptr.columns[i]
+            arrow_columns.append(vec.to_arrow())
+
+        return pa.table(arrow_columns, names=column_names)
