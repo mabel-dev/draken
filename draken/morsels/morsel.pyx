@@ -156,61 +156,64 @@ cdef class Morsel:
     def take(self, indices):
         """
         Take rows by indices, similar to pyarrow.Table.take.
-        
+
         Args:
             indices: List or array of row indices to select
-            
+
         Returns:
             Morsel: New Morsel with selected rows
         """
         import pyarrow as pa
-        import pyarrow.compute as pc
-        
+
         # First convert this morsel to arrow (bypassing potential vector issues)
         arrow_table = self._to_arrow_safe()
-        
+
         # Use pyarrow's take method
         taken_table = arrow_table.take(indices)
-        
+
         # Create new Morsel from the taken table
         return Morsel.from_arrow(taken_table)
-    
+
     def select(self, columns):
         """
         Select columns by name, similar to pyarrow.Table.select.
-        
+
         Args:
-            columns: List of column names to select
-            
+            columns: List of column names to select, or single column name string
+
         Returns:
             Morsel: New Morsel with selected columns
         """
         import pyarrow as pa
-        
+
         # First convert this morsel to arrow (bypassing potential vector issues)
         arrow_table = self._to_arrow_safe()
-        
+
+        # Ensure columns is a list for pyarrow compatibility
+        if isinstance(columns, str):
+            columns = [columns]
+
         # Use pyarrow's select method
         selected_table = arrow_table.select(columns)
-        
+
         # Create new Morsel from the selected table
         return Morsel.from_arrow(selected_table)
-    
+
     def rename(self, names):
         """
         Rename columns, similar to pyarrow.Table.rename_columns.
-        
+
         Args:
             names: List of new column names or dict mapping old->new names
-            
+
         Returns:
             Morsel: New Morsel with renamed columns
         """
         import pyarrow as pa
-        
+
         # First convert this morsel to arrow (bypassing potential vector issues)
         arrow_table = self._to_arrow_safe()
-        
+
         if isinstance(names, dict):
             # Handle dict mapping by creating a list of names
             current_names = arrow_table.column_names
@@ -219,46 +222,46 @@ cdef class Morsel:
         else:
             # Handle list of names directly
             renamed_table = arrow_table.rename_columns(names)
-        
+
         # Create new Morsel from the renamed table
         return Morsel.from_arrow(renamed_table)
-    
+
     def to_arrow(self):
         """
         Convert Morsel back to pyarrow.Table.
-        
+
         Returns:
             pyarrow.Table: Table with same data and column names
         """
         return self._to_arrow_safe()
-    
+
     def _to_arrow_safe(self):
         """
         Reconstruct arrow table by building it column by column using row access.
         This is slower but guarantees correctness by avoiding the corrupted vector conversions.
         """
         import pyarrow as pa
-        
+
         # Get column names as strings
-        column_names = [name.decode('utf-8') if isinstance(name, bytes) else name 
-                       for name in self.column_names]
-        
+        column_names = [name.decode('utf-8') if isinstance(name, bytes) else name
+                        for name in self.column_names]
+
         # Build data row by row to avoid vector conversion issues
         columns_data = [[] for _ in range(self.ptr.num_columns)]
-        
+
         # Extract data row by row
         cdef int row, col
         for row in range(self.ptr.num_rows):
             row_data = self[row]  # Get row as tuple
             for col in range(len(row_data)):
                 columns_data[col].append(row_data[col])
-        
+
         # Create pyarrow arrays from the extracted data
         arrow_columns = []
         for col_data in columns_data:
             try:
                 arrow_columns.append(pa.array(col_data))
-            except Exception:
+            except Exception as e:
                 # If we can't create the array, try with explicit null handling
                 processed_data = []
                 for item in col_data:
@@ -266,11 +269,11 @@ cdef class Morsel:
                         try:
                             # Try to decode bytes to string
                             processed_data.append(item.decode('utf-8'))
-                        except:
+                        except UnicodeDecodeError:
                             processed_data.append(None)
                     else:
                         processed_data.append(item)
                 arrow_columns.append(pa.array(processed_data))
-        
+
         # Create and return the table
         return pa.table(arrow_columns, names=column_names)
