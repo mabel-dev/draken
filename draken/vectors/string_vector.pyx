@@ -216,7 +216,7 @@ cdef class StringVector(Vector):
         cdef DrakenVarBuffer* src_ptr = self.ptr
         cdef int32_t src_idx, start, end, byte_len
         cdef int32_t total_bytes = 0
-        
+
         # First pass: calculate total bytes needed
         for i in range(n):
             src_idx = indices[i]
@@ -225,33 +225,33 @@ cdef class StringVector(Vector):
             start = src_ptr.offsets[src_idx]
             end = src_ptr.offsets[src_idx + 1]
             total_bytes += (end - start)
-        
+
         # Create result vector
         cdef StringVector result = StringVector(n, total_bytes)
         cdef DrakenVarBuffer* dst_ptr = result.ptr
-        
+
         # Copy data
         cdef char* src_data = <char*>src_ptr.data
         cdef char* dst_data = <char*>dst_ptr.data
         cdef int32_t* dst_offsets = dst_ptr.offsets
         cdef int32_t dst_offset = 0
         cdef uint8_t src_bit, dst_byte_idx, dst_bit_idx
-        
+
         dst_offsets[0] = 0
-        
+
         for i in range(n):
             src_idx = indices[i]
             start = src_ptr.offsets[src_idx]
             end = src_ptr.offsets[src_idx + 1]
             byte_len = end - start
-            
+
             # Copy string data
             if byte_len > 0:
                 memcpy(dst_data + dst_offset, src_data + start, byte_len)
-            
+
             dst_offset += byte_len
             dst_offsets[i + 1] = dst_offset
-            
+
             # Handle null bitmap if present
             if src_ptr.null_bitmap != NULL:
                 if dst_ptr.null_bitmap == NULL:
@@ -261,17 +261,17 @@ cdef class StringVector(Vector):
                         raise MemoryError()
                     # Initialize to all valid (1s)
                     memset(dst_ptr.null_bitmap, 0xFF, (n + 7) // 8)
-                
+
                 # Copy null bit
                 src_bit = (src_ptr.null_bitmap[src_idx >> 3] >> (src_idx & 7)) & 1
                 dst_byte_idx = i >> 3
                 dst_bit_idx = i & 7
-                
+
                 if src_bit:
                     dst_ptr.null_bitmap[dst_byte_idx] |= (1 << dst_bit_idx)
                 else:
                     dst_ptr.null_bitmap[dst_byte_idx] &= ~(1 << dst_bit_idx)
-        
+
         return result
 
     def __str__(self):
