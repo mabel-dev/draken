@@ -33,6 +33,7 @@ from draken.core.buffers cimport DrakenFixedBuffer, DrakenVarBuffer
 from draken.vectors.int64_vector cimport Int64Vector
 from draken.vectors.float64_vector cimport Float64Vector
 from draken.vectors.bool_vector cimport BoolVector
+from draken.vectors.string_vector cimport StringVector
 
 # Python helper: int subclass for DrakenType enum debugging
 cdef class DrakenTypeInt(int):
@@ -172,53 +173,56 @@ cdef class Morsel:
         cdef Vector src_vec, dst_vec
         cdef DrakenType vec_type
         
-        # Convert indices to memoryview for efficient access
-        import numpy as np
+        # Convert indices to array without NumPy
         if not hasattr(indices, '__len__'):
             indices = [indices]
         
-        # Handle PyArrow arrays
-        if hasattr(indices, 'to_numpy'):
-            indices_array = indices.to_numpy().astype(np.int32)
-        else:
-            indices_array = np.asarray(indices, dtype=np.int32)
+        # Handle PyArrow arrays by converting to list
+        if hasattr(indices, 'to_pylist'):
+            indices = indices.to_pylist()
+        elif hasattr(indices, 'tolist'):  # Handle numpy arrays if passed in
+            indices = indices.tolist()
         
-        # Ensure the array is writable for memoryview
-        if not indices_array.flags.writeable:
-            indices_array = indices_array.copy()
+        # Convert to C array
+        n_indices = len(indices)
+        cdef int32_t* indices_ptr = <int32_t*>PyMem_Malloc(n_indices * sizeof(int32_t))
+        if indices_ptr == NULL:
+            raise MemoryError()
             
-        indices_view = indices_array
-        n_indices = indices_array.shape[0]
-        
-        # Initialize result morsel
-        result._columns = [None] * n_columns
-        result._encoded_names = [None] * n_columns
-        result.ptr = <DrakenMorsel*> PyMem_Malloc(sizeof(DrakenMorsel))
-        result.ptr.num_columns = n_columns
-        result.ptr.num_rows = n_indices
-        result.ptr.columns = <void**> PyMem_Malloc(sizeof(void*) * n_columns)
-        result.ptr.column_names = <const char**> PyMem_Malloc(sizeof(const char*) * n_columns)
-        result.ptr.column_types = <DrakenType*> PyMem_Malloc(sizeof(DrakenType) * n_columns)
-        
-        # Take from each column using vector's native take method
-        for i in range(n_columns):
-            src_vec = <Vector>self.ptr.columns[i]
-            vec_type = self.ptr.column_types[i]
+        try:
+            for i in range(n_indices):
+                indices_ptr[i] = <int32_t>indices[i]
             
-            # Use the vector's optimized take method if available
-            if hasattr(src_vec, 'take'):
+            # Create memoryview from C array
+            indices_view = <int32_t[:n_indices]>indices_ptr
+            
+            # Initialize result morsel
+            result._columns = [None] * n_columns
+            result._encoded_names = [None] * n_columns
+            result.ptr = <DrakenMorsel*> PyMem_Malloc(sizeof(DrakenMorsel))
+            result.ptr.num_columns = n_columns
+            result.ptr.num_rows = n_indices
+            result.ptr.columns = <void**> PyMem_Malloc(sizeof(void*) * n_columns)
+            result.ptr.column_names = <const char**> PyMem_Malloc(sizeof(const char*) * n_columns)
+            result.ptr.column_types = <DrakenType*> PyMem_Malloc(sizeof(DrakenType) * n_columns)
+            
+            # Take from each column using vector's native take method
+            for i in range(n_columns):
+                src_vec = <Vector>self.ptr.columns[i]
+                vec_type = self.ptr.column_types[i]
+                
+                # All vector types should now have take method
                 dst_vec = src_vec.take(indices_view)
-            else:
-                # Fallback: create new vector manually for types without take
-                dst_vec = self._take_vector_fallback(src_vec, indices_view, vec_type)
+                
+                result._columns[i] = dst_vec
+                result._encoded_names[i] = self._encoded_names[i]
+                result.ptr.columns[i] = <void*>dst_vec
+                result.ptr.column_types[i] = vec_type
+                result.ptr.column_names[i] = self.ptr.column_names[i]
             
-            result._columns[i] = dst_vec
-            result._encoded_names[i] = self._encoded_names[i]
-            result.ptr.columns[i] = <void*>dst_vec
-            result.ptr.column_types[i] = vec_type
-            result.ptr.column_names[i] = self.ptr.column_names[i]
-        
-        return result
+            return result
+        finally:
+            PyMem_Free(indices_ptr)
     
     def select(self, columns):
         """
@@ -353,21 +357,3 @@ cdef class Morsel:
             arrow_columns.append(vec.to_arrow())
         
         return pa.table(arrow_columns, names=column_names)
-    
-    cdef Vector _take_vector_fallback(self, Vector vec, int32_t[::1] indices, DrakenType vec_type):
-        """
-        Fallback implementation for vectors without native take method.
-        This is used for string vectors and other types that don't have optimized take.
-        """
-        # This is a simplified fallback - in practice, you'd implement 
-        # optimized versions for each vector type
-        import numpy as np
-        import pyarrow as pa
-        
-        # Convert to arrow, take, and convert back
-        arrow_array = vec.to_arrow()
-        indices_array = pa.array(np.asarray(indices), type=pa.int32())
-        taken_array = pa.compute.take(arrow_array, indices_array)
-        
-        # Create new vector from taken array
-        return Vector.from_arrow(taken_array)
