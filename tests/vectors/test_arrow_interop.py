@@ -46,6 +46,36 @@ TESTS = [
         lambda arr: pc.sum(pc.binary_length(arr)).as_py(),
         lambda vec: sum(len(s) for s in vec.to_pylist() if s is not None),
     ),
+    # Date32: min
+    (
+        pa.array([18000, 18500, None, 19000], type=pa.date32()),
+        lambda arr: pc.min(arr).cast(pa.int32()).as_py(),
+        lambda vec: vec.min(),
+    ),
+    # Timestamp: max
+    (
+        pa.array([1000000, None, 3000000, 2000000], type=pa.timestamp('us')),
+        lambda arr: pc.max(arr).cast(pa.int64()).as_py(),
+        lambda vec: vec.max(),
+    ),
+    # Time32: count non-null
+    (
+        pa.array([3600, 7200, None, 10800], type=pa.time32('s')),
+        lambda arr: len(arr) - arr.null_count,
+        lambda vec: vec.length - vec.null_count,
+    ),
+    # Time64: count non-null
+    (
+        pa.array([3600000000, None, 7200000000, None], type=pa.time64('us')),
+        lambda arr: len(arr) - arr.null_count,
+        lambda vec: vec.length - vec.null_count,
+    ),
+    # List/Array: count non-null
+    (
+        pa.array([[1, 2], [3], None, [4, 5, 6]], type=pa.list_(pa.int64())),
+        lambda arr: len(arr) - arr.null_count,
+        lambda vec: vec.length - vec.null_count,
+    ),
 ]
 
 
