@@ -12,6 +12,8 @@ cdef extern from "buffers.h":
         DRAKEN_FLOAT64
         DRAKEN_DATE32
         DRAKEN_TIMESTAMP64
+        DRAKEN_TIME32
+        DRAKEN_TIME64
         DRAKEN_BOOL
         DRAKEN_STRING
         DRAKEN_ARRAY

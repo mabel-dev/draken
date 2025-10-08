@@ -32,6 +32,10 @@ from draken.vectors.float64_vector cimport from_arrow as float64_from_arrow
 from draken.vectors.int64_vector cimport from_arrow as int64_from_arrow
 from draken.vectors.string_vector cimport from_arrow as string_from_arrow
 from draken.vectors.string_vector cimport from_arrow_struct as string_from_arrow_struct
+from draken.vectors.date32_vector cimport from_arrow as date32_from_arrow
+from draken.vectors.timestamp_vector cimport from_arrow as timestamp_from_arrow
+from draken.vectors.time_vector cimport from_arrow as time_from_arrow
+from draken.vectors.array_vector cimport from_arrow as array_from_arrow
 
 from draken.vectors.arrow_vector import from_arrow as arrow_from_arrow
 
@@ -93,6 +97,14 @@ cpdef object vector_from_arrow(object array):
         return float64_from_arrow(array)
     if pa_type.equals(pyarrow.bool_()):
         return bool_from_arrow(array)
+    if pyarrow.types.is_date32(pa_type):
+        return date32_from_arrow(array)
+    if pyarrow.types.is_timestamp(pa_type):
+        return timestamp_from_arrow(array)
+    if pyarrow.types.is_time32(pa_type) or pyarrow.types.is_time64(pa_type):
+        return time_from_arrow(array)
+    if pyarrow.types.is_list(pa_type) or pyarrow.types.is_large_list(pa_type):
+        return array_from_arrow(array)
     if isinstance(pa_type, pyarrow.StructType):
         return string_from_arrow_struct(array)
 
