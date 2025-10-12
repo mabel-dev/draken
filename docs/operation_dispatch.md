@@ -159,12 +159,13 @@ dispatch_op(TYPE_INT64, False, TYPE_INT64, False, and_op)
 
 ## Scalarity
 
-The dispatch system supports all combinations of scalar/vector operands:
+The dispatch system supports the following combinations of scalar/vector operands:
 
 - **Vector-Vector**: Both operands are vectors
 - **Vector-Scalar**: Left is vector, right is scalar
-- **Scalar-Vector**: Left is scalar, right is vector
 - **Scalar-Scalar**: Both operands are scalars
+
+**Note**: Scalar-Vector (left is scalar, right is vector) is **NOT supported** and will return `None`.
 
 ```python
 # Vector-Vector
@@ -173,8 +174,8 @@ dispatch_op(TYPE_INT64, False, TYPE_INT64, False, add_op)
 # Vector-Scalar
 dispatch_op(TYPE_INT64, False, TYPE_INT64, True, add_op)
 
-# Scalar-Vector
-dispatch_op(TYPE_INT64, True, TYPE_INT64, False, add_op)
+# Scalar-Vector (NOT SUPPORTED - returns None)
+dispatch_op(TYPE_INT64, True, TYPE_INT64, False, add_op)  # Returns None
 
 # Scalar-Scalar
 dispatch_op(TYPE_INT64, True, TYPE_INT64, True, add_op)

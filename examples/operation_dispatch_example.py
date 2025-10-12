@@ -91,14 +91,17 @@ def main():
     combos = [
         (False, False, "vector + vector"),
         (False, True,  "vector + scalar"),
-        (True,  False, "scalar + vector"),
+        (True,  False, "scalar + vector (NOT SUPPORTED)"),
         (True,  True,  "scalar + scalar"),
     ]
     
     for left_scalar, right_scalar, desc in combos:
         result = get_op(TYPE_INT64, left_scalar, TYPE_INT64, right_scalar, 'add')
-        status = "compatible" if result is None else "has function"
-        print(f"  {desc:20s}: {result} ({status})")
+        if left_scalar and not right_scalar:
+            status = "not supported"
+        else:
+            status = "compatible" if result is None else "has function"
+        print(f"  {desc:38s}: {result} ({status})")
     print()
     
     # Test error handling

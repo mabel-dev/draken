@@ -126,9 +126,9 @@ class TestDispatchOp:
         result = dispatch_op(TYPE_INT64, False, TYPE_INT64, True, op)
         assert result is None
         
-        # Scalar-Vector
+        # Scalar-Vector (NOT SUPPORTED)
         result = dispatch_op(TYPE_INT64, True, TYPE_INT64, False, op)
-        assert result is None
+        assert result is None  # Should return None (not supported)
         
         # Scalar-Scalar
         result = dispatch_op(TYPE_INT64, True, TYPE_INT64, True, op)

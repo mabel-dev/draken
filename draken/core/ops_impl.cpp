@@ -40,6 +40,12 @@ BinaryOpFunc get_op(
     int right_is_scalar,
     DrakenOperation operation
 ) {
+    // Check scalarity: Only support vector-vector, vector-scalar, and scalar-scalar
+    // Reject scalar-vector combinations
+    if (left_is_scalar && !right_is_scalar) {
+        return NULL;  // Scalar-vector not supported
+    }
+    
     // Check if types are compatible
     if (!types_compatible(left_type, right_type, operation)) {
         return NULL;  // Operation not supported for these types
