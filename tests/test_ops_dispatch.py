@@ -159,3 +159,45 @@ class TestTypeConstants:
         """Test other type constants."""
         assert TYPE_BOOL == 50
         assert TYPE_STRING == 60
+
+
+class TestGetOpFunction:
+    """Test the get_op convenience function."""
+    
+    def test_get_op_with_string_operation(self):
+        """Test get_op with string operation name."""
+        from draken.core.ops import get_op
+        
+        # Should work with string operation name
+        result = get_op(TYPE_INT64, False, TYPE_INT64, True, 'equals')
+        assert result is None  # Compatible but not implemented
+    
+    def test_get_op_with_enum_operation(self):
+        """Test get_op with enum operation."""
+        from draken.core.ops import get_op
+        
+        # Should work with enum value
+        equals_op = get_operation_enum('equals')
+        result = get_op(TYPE_INT64, False, TYPE_INT64, True, equals_op)
+        assert result is None  # Compatible but not implemented
+    
+    def test_get_op_with_invalid_string(self):
+        """Test get_op with invalid string raises error."""
+        from draken.core.ops import get_op
+        
+        with pytest.raises(ValueError, match="Unknown operation"):
+            get_op(TYPE_INT64, False, TYPE_INT64, True, 'invalid_op')
+    
+    def test_get_op_all_operation_types(self):
+        """Test get_op with all operation types."""
+        from draken.core.ops import get_op
+        
+        # Test various operations
+        operations = ['add', 'subtract', 'multiply', 'divide', 
+                     'equals', 'not_equals', 'greater_than',
+                     'and', 'or', 'xor']
+        
+        for op in operations:
+            result = get_op(TYPE_INT64, False, TYPE_INT64, False, op)
+            # Should return None (not error) for each operation
+            assert result is None or isinstance(result, int)

@@ -119,3 +119,53 @@ def get_operation_enum(op_name: str) -> int:
         raise ValueError(f"Unknown operation: {op_name}")
     
     return op_map[op_name.lower()]
+
+
+def get_op(left_type, left_is_scalar, right_type, right_is_scalar, operation):
+    """
+    Get operation function for the given type and scalarity combination.
+    
+    This is a convenience wrapper around dispatch_op that matches the exact
+    signature requested: get_op(left_type, left_is_scalar, right_type, right_is_scalar, operation).
+    
+    Parameters
+    ----------
+    left_type : DrakenType or int
+        Type of the left operand (use TYPE_* constants)
+    left_is_scalar : bool
+        Whether the left operand is a scalar
+    right_type : DrakenType or int
+        Type of the right operand (use TYPE_* constants)
+    right_is_scalar : bool
+        Whether the right operand is a scalar
+    operation : DrakenOperation or int or str
+        The operation to perform (use get_operation_enum or OP_* constants or string name)
+    
+    Returns
+    -------
+    object or None
+        Function pointer if the operation is supported, None otherwise
+    
+    Examples
+    --------
+    >>> from draken.core.ops import get_op, TYPE_INT64
+    >>> # Using operation enum
+    >>> func = get_op(TYPE_INT64, False, TYPE_INT64, True, 10)  # 10 is OP_EQUALS
+    >>> print(func)  # None if not supported, function pointer otherwise
+    
+    >>> # Using operation name string
+    >>> func = get_op(TYPE_INT64, False, TYPE_INT64, True, 'equals')
+    >>> print(func)  # None if not supported, function pointer otherwise
+    """
+    # If operation is a string, convert it to enum
+    if isinstance(operation, str):
+        operation = get_operation_enum(operation)
+    
+    # Call the dispatch function
+    return dispatch_op(
+        left_type,
+        left_is_scalar,
+        right_type,
+        right_is_scalar,
+        operation
+    )

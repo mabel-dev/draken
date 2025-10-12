@@ -13,6 +13,27 @@ The dispatch system consists of:
 3. **Cython Definition (`ops.pxd`)**: Exposes C++ types to Cython
 4. **Cython Wrapper (`ops.pyx`)**: Provides Python-friendly interface
 
+## Main API
+
+The primary function for operation dispatch is:
+
+```python
+get_op(left_type, left_is_scalar, right_type, right_is_scalar, operation) -> function or None
+```
+
+**Parameters:**
+- `left_type`: Type of the left operand (use TYPE_* constants)
+- `left_is_scalar`: Whether the left operand is a scalar (bool)
+- `right_type`: Type of the right operand (use TYPE_* constants)
+- `right_is_scalar`: Whether the right operand is a scalar (bool)
+- `operation`: Operation to perform (string name or enum value)
+
+**Returns:**
+- `None` if the operation is not supported for the given type combination
+- Function pointer (as integer) if the operation is supported
+
+This matches the exact signature requested: `get_op(left_type, left_is_scalar, right_type, right_is_scalar, operation) -> function`
+
 ## Usage
 
 ### Getting Operation Enums
@@ -54,25 +75,34 @@ from draken.core.ops import (
 ### Dispatching Operations
 
 ```python
-from draken.core.ops import dispatch_op, get_operation_enum, TYPE_INT64, TYPE_FLOAT64
+from draken.core.ops import get_op, TYPE_INT64, TYPE_FLOAT64
 
-# Get operation enum
-equals_op = get_operation_enum('equals')
-
-# Dispatch operation
-# Returns function pointer (as integer) if supported, None otherwise
-result = dispatch_op(
+# Method 1: Using the get_op function (simplest)
+# Accepts operation as string or enum
+result = get_op(
     left_type=TYPE_INT64,
     left_is_scalar=False,     # Left operand is a vector
     right_type=TYPE_INT64,
     right_is_scalar=True,      # Right operand is a scalar
-    operation=equals_op
+    operation='equals'         # String or enum
 )
 
 if result is None:
     print("Operation not supported for these types")
 else:
     print(f"Operation function pointer: {result}")
+
+# Method 2: Using dispatch_op with explicit enum
+from draken.core.ops import dispatch_op, get_operation_enum
+
+equals_op = get_operation_enum('equals')
+result = dispatch_op(
+    left_type=TYPE_INT64,
+    left_is_scalar=False,
+    right_type=TYPE_INT64,
+    right_is_scalar=True,
+    operation=equals_op
+)
 ```
 
 ## Operation Compatibility
