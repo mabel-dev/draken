@@ -102,6 +102,14 @@ extensions = [
         depends=["draken/core/buffers.h"],
     ),
     Extension(
+        name="draken.core.ops",
+        sources=["draken/core/ops.pyx", "draken/core/ops_impl.cpp"],
+        extra_compile_args=CPP_COMPILE_FLAGS,
+        include_dirs=include_dirs + ["draken"],
+        depends=["draken/core/buffers.h", "draken/core/ops.h"],
+        language="c++",
+    ),
+    Extension(
         name="draken.vectors.bool_vector",
         sources=["draken/vectors/bool_vector.pyx"],
         extra_compile_args=C_COMPILE_FLAGS,
