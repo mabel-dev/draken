@@ -18,7 +18,7 @@ cdef class StringVector(Vector):
 
     cpdef list to_pylist(self)
 
-cdef StringVector from_arrow(object array)
-cdef StringVector from_arrow_struct(object array)
+cdef StringVector string_from_arrow(object array)
+cdef StringVector string_from_arrow_struct(object array)
 
 cpdef StringVector uppercase(StringVector input)

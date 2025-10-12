@@ -41,7 +41,8 @@ from draken.vectors.vector cimport Vector
 
 
 # Constant for null hashes
-cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
+# Note: When compiled as part of vector_implementations, this is defined in the parent file
+# cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
 
 
 cdef class StringVector(Vector):
@@ -282,7 +283,7 @@ cdef class StringVector(Vector):
         return f"<StringVector len={self.ptr.length} values={vals}>"
 
 
-cdef StringVector from_arrow(object array):
+cdef StringVector string_from_arrow(object array):
     """
     Wrap an Arrow StringArray without copying.
     Keeps references to Arrow buffers to prevent GC from freeing memory.
@@ -325,7 +326,7 @@ cdef inline bint is_null(uint8_t* bitmap, Py_ssize_t i):
         return False
     return not ((bitmap[i >> 3] >> (i & 7)) & 1)
 
-cdef StringVector from_arrow_struct(object array):
+cdef StringVector string_from_arrow_struct(object array):
     """
     Convert an Arrow StructArray into a StringVector of JSON strings.
     Each row becomes {"field": value, ...}

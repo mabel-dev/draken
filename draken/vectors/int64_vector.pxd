@@ -30,4 +30,4 @@ cdef class Int64Vector(Vector):
 
     cpdef uint64_t[::1] hash(self)
 
-cdef Int64Vector from_arrow(object array)
+cdef Int64Vector int64_from_arrow(object array)

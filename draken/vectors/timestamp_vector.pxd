@@ -28,4 +28,4 @@ cdef class TimestampVector(Vector):
 
     cpdef uint64_t[::1] hash(self)
 
-cdef TimestampVector from_arrow(object array)
+cdef TimestampVector timestamp_from_arrow(object array)

@@ -32,7 +32,8 @@ from draken.core.fixed_vector cimport alloc_fixed_buffer, buf_dtype, buf_itemsiz
 from draken.vectors.vector cimport Vector
 
 # NULL_HASH constant for null hash entries
-cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
+# Note: When compiled as part of vector_implementations, this is defined in the parent file
+# cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
 
 cdef class Float64Vector(Vector):
 
@@ -293,7 +294,7 @@ cdef class Float64Vector(Vector):
         return f"<Float64Vector len={buf_length(self.ptr)} values={vals}>"
 
 
-cdef Float64Vector from_arrow(object array):
+cdef Float64Vector float64_from_arrow(object array):
     cdef Float64Vector vec = Float64Vector(0, True)
     vec.ptr = <DrakenFixedBuffer*> malloc(sizeof(DrakenFixedBuffer))
     if vec.ptr == NULL:

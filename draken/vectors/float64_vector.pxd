@@ -30,4 +30,4 @@ cdef class Float64Vector(Vector):
 
     cpdef uint64_t[::1] hash(self)
 
-cdef Float64Vector from_arrow(object array)
+cdef Float64Vector float64_from_arrow(object array)

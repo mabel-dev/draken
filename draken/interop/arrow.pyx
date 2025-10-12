@@ -27,15 +27,15 @@ from draken.core.buffers cimport DrakenType
 from draken.interop.arrow_c_data_interface cimport ARROW_FLAG_NULLABLE
 from draken.interop.arrow_c_data_interface cimport ArrowArray
 from draken.interop.arrow_c_data_interface cimport ArrowSchema
-from draken.vectors.bool_vector cimport from_arrow as bool_from_arrow
-from draken.vectors.float64_vector cimport from_arrow as float64_from_arrow
-from draken.vectors.int64_vector cimport from_arrow as int64_from_arrow
-from draken.vectors.string_vector cimport from_arrow as string_from_arrow
-from draken.vectors.string_vector cimport from_arrow_struct as string_from_arrow_struct
-from draken.vectors.date32_vector cimport from_arrow as date32_from_arrow
-from draken.vectors.timestamp_vector cimport from_arrow as timestamp_from_arrow
-from draken.vectors.time_vector cimport from_arrow as time_from_arrow
-from draken.vectors.array_vector cimport from_arrow as array_from_arrow
+from draken.vectors.vector_implementations cimport bool_from_arrow
+from draken.vectors.vector_implementations cimport float64_from_arrow
+from draken.vectors.vector_implementations cimport int64_from_arrow
+from draken.vectors.vector_implementations cimport string_from_arrow
+from draken.vectors.vector_implementations cimport string_from_arrow_struct
+from draken.vectors.vector_implementations cimport date32_from_arrow
+from draken.vectors.vector_implementations cimport timestamp_from_arrow
+from draken.vectors.vector_implementations cimport time_from_arrow
+from draken.vectors.vector_implementations cimport array_from_arrow
 
 from draken.vectors.arrow_vector import from_arrow as arrow_from_arrow
 

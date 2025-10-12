@@ -83,7 +83,7 @@ cdef class ArrayVector(Vector):
         return f"<ArrayVector type={self._arr.type} len={len(self._arr)} values={self._arr.to_pylist()[:10]}>"
 
 
-cdef ArrayVector from_arrow(object array):
+cdef ArrayVector array_from_arrow(object array):
     vec = ArrayVector()
     vec._arr = array
     return vec

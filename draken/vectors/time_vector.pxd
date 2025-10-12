@@ -19,4 +19,4 @@ cdef class TimeVector(Vector):
 
     cpdef uint64_t[::1] hash(self)
 
-cdef TimeVector from_arrow(object array)
+cdef TimeVector time_from_arrow(object array)

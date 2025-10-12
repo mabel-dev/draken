@@ -20,4 +20,4 @@ cdef class BoolVector(Vector):
     cpdef list to_pylist(self)
     cpdef uint64_t[::1] hash(self)
 
-cdef BoolVector from_arrow(object array)
+cdef BoolVector bool_from_arrow(object array)

@@ -27,4 +27,4 @@ cdef class Date32Vector(Vector):
 
     cpdef uint64_t[::1] hash(self)
 
-cdef Date32Vector from_arrow(object array)
+cdef Date32Vector date32_from_arrow(object array)

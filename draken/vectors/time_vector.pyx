@@ -41,7 +41,8 @@ from draken.core.fixed_vector cimport free_fixed_buffer
 from draken.vectors.vector cimport Vector
 
 # NULL_HASH constant for null hash entries
-cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
+# Note: When compiled as part of vector_implementations, this is defined in the parent file
+# cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
 
 cdef class TimeVector(Vector):
 
@@ -272,7 +273,7 @@ cdef class TimeVector(Vector):
         return f"<TimeVector len={buf_length(self.ptr)} is_time64={self.is_time64} values={vals}>"
 
 
-cdef TimeVector from_arrow(object array):
+cdef TimeVector time_from_arrow(object array):
     cdef bint is_time64 = pyarrow.types.is_time64(array.type)
     cdef TimeVector vec = TimeVector(0, is_time64, True)   # wrap=True: no alloc
     vec.ptr = <DrakenFixedBuffer*> malloc(sizeof(DrakenFixedBuffer))
