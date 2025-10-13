@@ -5,6 +5,10 @@ Example usage of the Draken operation dispatch system.
 This script demonstrates how to use the operation dispatch system to
 check if operations are supported for different type combinations.
 """
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from draken.core.ops import (
     get_op,

@@ -1,6 +1,11 @@
 """
 Tests for the operation dispatch system.
 """
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import pytest
 from draken.core.ops import (
     dispatch_op,
@@ -201,3 +206,6 @@ class TestGetOpFunction:
             result = get_op(TYPE_INT64, False, TYPE_INT64, False, op)
             # Should return None (not error) for each operation
             assert result is None or isinstance(result, int)
+
+if __name__ == "__main__":
+    pytest.main([__file__])
