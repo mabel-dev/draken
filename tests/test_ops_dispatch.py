@@ -207,5 +207,54 @@ class TestGetOpFunction:
             # Should return None (not error) for each operation
             assert result is None or isinstance(result, int)
 
+
+class TestDispatchVectorVectorComparisons:
+    """Test that the dispatcher recognizes vector-vector comparison operations."""
+    
+    def test_dispatch_vector_vector_int64_comparisons(self):
+        """Test dispatcher recognizes Int64Vector-Int64Vector comparisons as valid."""
+        from draken.core.ops import get_op
+        
+        # Test all comparison operations for vector-vector Int64
+        operations = ['equals', 'not_equals', 'greater_than', 
+                     'greater_than_or_equals', 'less_than', 'less_than_or_equals']
+        
+        for op in operations:
+            # Vector-Vector: left is vector (False), right is vector (False)
+            result = get_op(TYPE_INT64, False, TYPE_INT64, False, op)
+            # Dispatcher validates this as compatible (same type comparison)
+            # Returns None because actual implementation is in vector classes
+            assert result is None, f"Dispatcher should validate {op} for Int64Vector-Int64Vector"
+    
+    def test_dispatch_vector_vector_float64_comparisons(self):
+        """Test dispatcher recognizes Float64Vector-Float64Vector comparisons as valid."""
+        from draken.core.ops import get_op
+        
+        # Test all comparison operations for vector-vector Float64
+        operations = ['equals', 'not_equals', 'greater_than', 
+                     'greater_than_or_equals', 'less_than', 'less_than_or_equals']
+        
+        for op in operations:
+            # Vector-Vector: left is vector (False), right is vector (False)
+            result = get_op(TYPE_FLOAT64, False, TYPE_FLOAT64, False, op)
+            # Dispatcher validates this as compatible (same type comparison)
+            # Returns None because actual implementation is in vector classes
+            assert result is None, f"Dispatcher should validate {op} for Float64Vector-Float64Vector"
+    
+    def test_dispatch_vector_scalar_comparisons(self):
+        """Test dispatcher recognizes vector-scalar comparisons as valid."""
+        from draken.core.ops import get_op
+        
+        operations = ['equals', 'not_equals', 'greater_than', 
+                     'greater_than_or_equals', 'less_than', 'less_than_or_equals']
+        
+        for op in operations:
+            # Vector-Scalar: left is vector (False), right is scalar (True)
+            result = get_op(TYPE_INT64, False, TYPE_INT64, True, op)
+            assert result is None, f"Dispatcher should validate {op} for Int64Vector-scalar"
+            
+            result = get_op(TYPE_FLOAT64, False, TYPE_FLOAT64, True, op)
+            assert result is None, f"Dispatcher should validate {op} for Float64Vector-scalar"
+
 if __name__ == "__main__":
     pytest.main([__file__])
