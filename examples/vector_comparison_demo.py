@@ -4,9 +4,15 @@
 This script demonstrates the newly added vector-vector comparison operations
 for Int64Vector and Float64Vector.
 """
+import sys
+from pathlib import Path
 
 import pyarrow as pa
+
 from draken import Vector
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 
 def main():

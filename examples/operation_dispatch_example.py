@@ -8,16 +8,15 @@ check if operations are supported for different type combinations.
 import sys
 from pathlib import Path
 
+from draken.core.ops import TYPE_BOOL
+from draken.core.ops import TYPE_FLOAT64
+from draken.core.ops import TYPE_INT64
+from draken.core.ops import TYPE_STRING
+from draken.core.ops import get_op
+from draken.core.ops import get_operation_enum
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from draken.core.ops import (
-    get_op,
-    get_operation_enum,
-    TYPE_INT64,
-    TYPE_FLOAT64,
-    TYPE_BOOL,
-    TYPE_STRING,
-)
 
 
 def main():

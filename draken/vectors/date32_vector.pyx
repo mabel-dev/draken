@@ -185,11 +185,11 @@ cdef class Date32Vector(Vector):
         cdef Py_ssize_t i, n = ptr.length
         if n == 0:
             raise ValueError("Cannot compute min of empty column")
-        
+
         cdef int32_t m
         cdef bint found = False
         cdef uint8_t byte, bit
-        
+
         # Find first non-null value
         for i in range(n):
             if ptr.null_bitmap != NULL:
@@ -200,10 +200,10 @@ cdef class Date32Vector(Vector):
             m = data[i]
             found = True
             break
-        
+
         if not found:
             raise ValueError("Cannot compute min of all-null column")
-        
+
         # Find minimum among remaining values
         for i in range(i + 1, n):
             if ptr.null_bitmap != NULL:
@@ -221,11 +221,11 @@ cdef class Date32Vector(Vector):
         cdef Py_ssize_t i, n = ptr.length
         if n == 0:
             raise ValueError("Cannot compute max of empty column")
-        
+
         cdef int32_t m
         cdef bint found = False
         cdef uint8_t byte, bit
-        
+
         # Find first non-null value
         for i in range(n):
             if ptr.null_bitmap != NULL:
@@ -236,10 +236,10 @@ cdef class Date32Vector(Vector):
             m = data[i]
             found = True
             break
-        
+
         if not found:
             raise ValueError("Cannot compute max of all-null column")
-        
+
         # Find maximum among remaining values
         for i in range(i + 1, n):
             if ptr.null_bitmap != NULL:

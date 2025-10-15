@@ -1,6 +1,7 @@
 lint:
 	python -m pip install --quiet --upgrade pycln isort ruff yamllint cython-lint
 #	python -m yamllint .
+	python fix_cython_whitespace.py
 	cython-lint draken/**/*.pyx
 	python -m ruff check --fix --exit-zero
 	python -m pycln .
@@ -24,7 +25,7 @@ test:
 compile:
 	clear
 	python -m pip install --upgrade pip uv
-	python -m uv pip install --upgrade 'cython==3.1.3' setuptools
+	python -m uv pip install --upgrade cython setuptools
 	find . -name '*.so' -delete
 	rm -rf build dist *.egg-info
 	python setup.py clean
