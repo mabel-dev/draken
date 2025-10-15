@@ -123,7 +123,7 @@ cdef class TimeVector(Vector):
         cdef int64_t* dst64
         cdef int32_t* src32
         cdef int32_t* dst32
-        
+
         if self.is_time64:
             src64 = <int64_t*> self.ptr.data
             dst64 = <int64_t*> out.ptr.data
@@ -229,7 +229,7 @@ cdef class TimeVector(Vector):
         cdef uint8_t byte, bit
         cdef int64_t* data64
         cdef int32_t* data32
-        
+
         if self.is_time64:
             data64 = <int64_t*> ptr.data
             for i in range(n):
@@ -260,7 +260,7 @@ cdef class TimeVector(Vector):
         cdef Py_ssize_t i, k = min(<Py_ssize_t>buf_length(self.ptr), 10)
         cdef int64_t* data64
         cdef int32_t* data32
-        
+
         if self.is_time64:
             data64 = <int64_t*> self.ptr.data
             for i in range(k):

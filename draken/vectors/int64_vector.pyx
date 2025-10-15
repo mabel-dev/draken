@@ -125,6 +125,21 @@ cdef class Int64Vector(Vector):
             buf[i] = 1 if data[i] == value else 0
         return <int8_t[:n]> buf
 
+    cpdef int8_t[::1] equals_vector(self, Int64Vector other):
+        cdef DrakenFixedBuffer* ptr1 = self.ptr
+        cdef DrakenFixedBuffer* ptr2 = other.ptr
+        cdef int64_t* data1 = <int64_t*> ptr1.data
+        cdef int64_t* data2 = <int64_t*> ptr2.data
+        cdef Py_ssize_t i, n = ptr1.length
+        if n != ptr2.length:
+            raise ValueError("Vectors must have the same length")
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data1[i] == data2[i] else 0
+        return <int8_t[:n]> buf
+
     cpdef int8_t[::1] not_equals(self, int64_t value):
         cdef DrakenFixedBuffer* ptr = self.ptr
         cdef int64_t* data = <int64_t*> ptr.data
@@ -134,6 +149,21 @@ cdef class Int64Vector(Vector):
             raise MemoryError()
         for i in range(n):
             buf[i] = 1 if data[i] != value else 0
+        return <int8_t[:n]> buf
+
+    cpdef int8_t[::1] not_equals_vector(self, Int64Vector other):
+        cdef DrakenFixedBuffer* ptr1 = self.ptr
+        cdef DrakenFixedBuffer* ptr2 = other.ptr
+        cdef int64_t* data1 = <int64_t*> ptr1.data
+        cdef int64_t* data2 = <int64_t*> ptr2.data
+        cdef Py_ssize_t i, n = ptr1.length
+        if n != ptr2.length:
+            raise ValueError("Vectors must have the same length")
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data1[i] != data2[i] else 0
         return <int8_t[:n]> buf
 
     cpdef int8_t[::1] greater_than(self, int64_t value):
@@ -147,6 +177,21 @@ cdef class Int64Vector(Vector):
             buf[i] = 1 if data[i] > value else 0
         return <int8_t[:n]> buf
 
+    cpdef int8_t[::1] greater_than_vector(self, Int64Vector other):
+        cdef DrakenFixedBuffer* ptr1 = self.ptr
+        cdef DrakenFixedBuffer* ptr2 = other.ptr
+        cdef int64_t* data1 = <int64_t*> ptr1.data
+        cdef int64_t* data2 = <int64_t*> ptr2.data
+        cdef Py_ssize_t i, n = ptr1.length
+        if n != ptr2.length:
+            raise ValueError("Vectors must have the same length")
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data1[i] > data2[i] else 0
+        return <int8_t[:n]> buf
+
     cpdef int8_t[::1] greater_than_or_equals(self, int64_t value):
         cdef DrakenFixedBuffer* ptr = self.ptr
         cdef int64_t* data = <int64_t*> ptr.data
@@ -156,6 +201,21 @@ cdef class Int64Vector(Vector):
             raise MemoryError()
         for i in range(n):
             buf[i] = 1 if data[i] >= value else 0
+        return <int8_t[:n]> buf
+
+    cpdef int8_t[::1] greater_than_or_equals_vector(self, Int64Vector other):
+        cdef DrakenFixedBuffer* ptr1 = self.ptr
+        cdef DrakenFixedBuffer* ptr2 = other.ptr
+        cdef int64_t* data1 = <int64_t*> ptr1.data
+        cdef int64_t* data2 = <int64_t*> ptr2.data
+        cdef Py_ssize_t i, n = ptr1.length
+        if n != ptr2.length:
+            raise ValueError("Vectors must have the same length")
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data1[i] >= data2[i] else 0
         return <int8_t[:n]> buf
 
     cpdef int8_t[::1] less_than(self, int64_t value):
@@ -169,6 +229,21 @@ cdef class Int64Vector(Vector):
             buf[i] = 1 if data[i] < value else 0
         return <int8_t[:n]> buf
 
+    cpdef int8_t[::1] less_than_vector(self, Int64Vector other):
+        cdef DrakenFixedBuffer* ptr1 = self.ptr
+        cdef DrakenFixedBuffer* ptr2 = other.ptr
+        cdef int64_t* data1 = <int64_t*> ptr1.data
+        cdef int64_t* data2 = <int64_t*> ptr2.data
+        cdef Py_ssize_t i, n = ptr1.length
+        if n != ptr2.length:
+            raise ValueError("Vectors must have the same length")
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data1[i] < data2[i] else 0
+        return <int8_t[:n]> buf
+
     cpdef int8_t[::1] less_than_or_equals(self, int64_t value):
         cdef DrakenFixedBuffer* ptr = self.ptr
         cdef int64_t* data = <int64_t*> ptr.data
@@ -178,6 +253,21 @@ cdef class Int64Vector(Vector):
             raise MemoryError()
         for i in range(n):
             buf[i] = 1 if data[i] <= value else 0
+        return <int8_t[:n]> buf
+
+    cpdef int8_t[::1] less_than_or_equals_vector(self, Int64Vector other):
+        cdef DrakenFixedBuffer* ptr1 = self.ptr
+        cdef DrakenFixedBuffer* ptr2 = other.ptr
+        cdef int64_t* data1 = <int64_t*> ptr1.data
+        cdef int64_t* data2 = <int64_t*> ptr2.data
+        cdef Py_ssize_t i, n = ptr1.length
+        if n != ptr2.length:
+            raise ValueError("Vectors must have the same length")
+        cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
+        if buf == NULL:
+            raise MemoryError()
+        for i in range(n):
+            buf[i] = 1 if data1[i] <= data2[i] else 0
         return <int8_t[:n]> buf
 
     cpdef int64_t sum(self):

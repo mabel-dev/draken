@@ -47,7 +47,7 @@ cpdef object dispatch_op(
 ):
     """
     Dispatch a binary operation.
-    
+
     Parameters
     ----------
     left_type : DrakenType
@@ -60,7 +60,7 @@ cpdef object dispatch_op(
         Whether the right operand is a scalar
     operation : DrakenOperation
         The operation to perform
-    
+
     Returns
     -------
     object
@@ -73,27 +73,28 @@ cpdef object dispatch_op(
         1 if right_is_scalar else 0,
         operation
     )
-    
+
     if func == NULL:
         return None
-    
+
     # Return the function pointer as an integer that could be used by C code
     return <size_t>func
+
 
 def get_operation_enum(op_name: str) -> int:
     """
     Get the operation enum value from a string name.
-    
+
     Parameters
     ----------
     op_name : str
         Name of the operation (e.g., 'add', 'equals')
-    
+
     Returns
     -------
     int
         The DrakenOperation enum value
-    
+
     Raises
     ------
     ValueError
@@ -114,20 +115,20 @@ def get_operation_enum(op_name: str) -> int:
         'or': OP_OR,
         'xor': OP_XOR,
     }
-    
+
     if op_name.lower() not in op_map:
         raise ValueError(f"Unknown operation: {op_name}")
-    
+
     return op_map[op_name.lower()]
 
 
 def get_op(left_type, left_is_scalar, right_type, right_is_scalar, operation):
     """
     Get operation function for the given type and scalarity combination.
-    
+
     This is a convenience wrapper around dispatch_op that matches the exact
     signature requested: get_op(left_type, left_is_scalar, right_type, right_is_scalar, operation).
-    
+
     Parameters
     ----------
     left_type : DrakenType or int
@@ -140,19 +141,19 @@ def get_op(left_type, left_is_scalar, right_type, right_is_scalar, operation):
         Whether the right operand is a scalar
     operation : DrakenOperation or int or str
         The operation to perform (use get_operation_enum or OP_* constants or string name)
-    
+
     Returns
     -------
     object or None
         Function pointer if the operation is supported, None otherwise
-    
+
     Examples
     --------
     >>> from draken.core.ops import get_op, TYPE_INT64
     >>> # Using operation enum
     >>> func = get_op(TYPE_INT64, False, TYPE_INT64, True, 10)  # 10 is OP_EQUALS
     >>> print(func)  # None if not supported, function pointer otherwise
-    
+
     >>> # Using operation name string
     >>> func = get_op(TYPE_INT64, False, TYPE_INT64, True, 'equals')
     >>> print(func)  # None if not supported, function pointer otherwise
@@ -160,7 +161,7 @@ def get_op(left_type, left_is_scalar, right_type, right_is_scalar, operation):
     # If operation is a string, convert it to enum
     if isinstance(operation, str):
         operation = get_operation_enum(operation)
-    
+
     # Call the dispatch function
     return dispatch_op(
         left_type,
