@@ -22,6 +22,7 @@ import pyarrow
 import pyarrow.compute as pc
 
 from draken.vectors.vector cimport Vector
+from draken.core.buffers cimport DRAKEN_ARRAY
 
 
 cdef class ArrayVector(Vector):
@@ -35,7 +36,7 @@ cdef class ArrayVector(Vector):
 
     @property
     def dtype(self):
-        return self._arr.type if self._arr is not None else None
+        return DRAKEN_ARRAY
 
     @property
     def itemsize(self):

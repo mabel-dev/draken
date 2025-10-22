@@ -410,6 +410,10 @@ cdef Int64Vector from_arrow(object array):
     vec.owns_data = False
 
     cdef object bufs = array.buffers()
+    # Keep references to prevent GC
+    vec._arrow_null_buf = bufs[0]
+    vec._arrow_data_buf = bufs[1]
+    
     cdef intptr_t base_ptr = <intptr_t> bufs[1].address
     cdef size_t itemsize = 8
     cdef Py_ssize_t offset = array.offset

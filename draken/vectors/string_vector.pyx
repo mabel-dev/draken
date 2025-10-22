@@ -64,6 +64,11 @@ cdef class StringVector(Vector):
             self.ptr = NULL
 
     @property
+    def length(self):
+        """Return the number of elements in the vector."""
+        return self.ptr.length
+
+    @property
     def dtype(self):
         return buf_dtype(self.ptr)
 
