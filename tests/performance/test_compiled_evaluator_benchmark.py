@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 import time
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 try:
     import pyarrow as pa
@@ -89,7 +89,7 @@ def benchmark_compound_and(morsel):
     
     # Compiled evaluator approach
     expr1 = BinaryExpression('less_than', ColumnExpression('x'), LiteralExpression(100000))
-    expr2 = BinaryExpression('equals', ColumnExpression('y'), LiteralExpression('england'))
+    expr2 = BinaryExpression('equals', ColumnExpression('y'), LiteralExpression(b'england'))
     expr = BinaryExpression('and', expr1, expr2)
     
     start = time.time()
@@ -107,8 +107,9 @@ def benchmark_compound_and(morsel):
     y_col = morsel.column(b'y')
     
     start = time.time()
-    temp1 = x_col.less_than(100000)
-    temp2 = y_col.equals('england')
+    from draken.vectors import BoolMask
+    temp1 = BoolMask(x_col.less_than(100000))
+    temp2 = BoolMask(y_col.equals(b'england'))
     manual_result = temp1.and_vector(temp2)
     manual_time = time.time() - start
     
@@ -152,10 +153,11 @@ def benchmark_complex_nested(morsel):
     z_col = morsel.column(b'z')
     
     start = time.time()
-    temp1 = x_col.less_than(100000)
-    temp2 = x_col.greater_than(900000)
+    from draken.vectors import BoolMask
+    temp1 = BoolMask(x_col.less_than(100000))
+    temp2 = BoolMask(x_col.greater_than(900000))
     temp3 = temp1.or_vector(temp2)
-    temp4 = z_col.greater_than(50.0)
+    temp4 = BoolMask(z_col.greater_than(50.0))
     manual_result = temp3.and_vector(temp4)
     manual_time = time.time() - start
     

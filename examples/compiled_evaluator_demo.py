@@ -11,17 +11,17 @@ operations.
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import pyarrow as pa
 
 import draken
-from draken.evaluators import (
-    BinaryExpression,
-    ColumnExpression,
-    LiteralExpression,
-    evaluate,
-)
+from draken.evaluators import BinaryExpression
+from draken.evaluators import ColumnExpression
+from draken.evaluators import LiteralExpression
+from draken.evaluators import evaluate
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+
 
 
 def print_section(title):
@@ -72,7 +72,7 @@ def main():
     # Example 2: String comparison - country == 'england'
     print_section("Example 2: String Comparison (country == 'england')")
     
-    expr2 = BinaryExpression('equals', ColumnExpression('country'), LiteralExpression('england'))
+    expr2 = BinaryExpression('equals', ColumnExpression('country'), LiteralExpression(b'england'))
     result2 = evaluate(morsel, expr2)
     
     print("Expression: country == 'england'")
@@ -86,7 +86,7 @@ def main():
     print_section("Example 3: Compound AND (age > 30 AND country == 'england')")
     
     expr3_left = BinaryExpression('greater_than', ColumnExpression('age'), LiteralExpression(30))
-    expr3_right = BinaryExpression('equals', ColumnExpression('country'), LiteralExpression('england'))
+    expr3_right = BinaryExpression('equals', ColumnExpression('country'), LiteralExpression(b'england'))
     expr3 = BinaryExpression('and', expr3_left, expr3_right)
     result3 = evaluate(morsel, expr3)
     
@@ -157,7 +157,8 @@ def main():
     # Example 7: Demonstrating caching
     print_section("Example 7: Evaluator Caching")
     
-    from draken.evaluators.evaluator import _evaluator_cache, clear_cache
+    from draken.evaluators.evaluator import _evaluator_cache
+    from draken.evaluators.evaluator import clear_cache
     
     clear_cache()
     print(f"Cache size after clearing: {len(_evaluator_cache)}")

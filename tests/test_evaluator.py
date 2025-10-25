@@ -273,7 +273,7 @@ class TestCompoundExpressions:
         expr1 = BinaryExpression('equals', ColumnExpression('x'), LiteralExpression(1))
         
         # y == 'england'
-        expr2 = BinaryExpression('equals', ColumnExpression('y'), LiteralExpression('england'))
+        expr2 = BinaryExpression('equals', ColumnExpression('y'), LiteralExpression(b'england'))
         
         # x == 1 AND y == 'england'
         and_expr = BinaryExpression('and', expr1, expr2)

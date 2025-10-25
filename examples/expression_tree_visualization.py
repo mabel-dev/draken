@@ -9,14 +9,13 @@ how they get compiled into efficient evaluators.
 import sys
 from pathlib import Path
 
+from draken.evaluators.expression import BinaryExpression
+from draken.evaluators.expression import ColumnExpression
+from draken.evaluators.expression import LiteralExpression
+from draken.evaluators.expression import UnaryExpression
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from draken.evaluators.expression import (
-    BinaryExpression,
-    ColumnExpression,
-    LiteralExpression,
-    UnaryExpression,
-)
 
 
 def print_tree(expr, indent=0, label=""):

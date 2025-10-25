@@ -18,7 +18,6 @@ This module provides:
 Used for high-performance analytics and columnar data processing in Draken.
 """
 
-import ctypes
 import pyarrow
 
 from cpython.mem cimport PyMem_Malloc
@@ -78,12 +77,11 @@ cdef class Float64Vector(Vector):
     def to_arrow(self):
         cdef size_t nbytes = buf_length(self.ptr) * buf_itemsize(self.ptr)
         addr = <intptr_t> self.ptr.data
-        data_ptr = ctypes.cast(int(addr), ctypes.POINTER(ctypes.c_double))
-        data_buf = pyarrow.foreign_buffer(ctypes.addressof(data_ptr.contents), nbytes)
+        data_buf = pyarrow.foreign_buffer(addr, nbytes, base=self)
 
         buffers = []
         if self.ptr.null_bitmap != NULL:
-            buffers.append(pyarrow.foreign_buffer(<intptr_t> self.ptr.null_bitmap, (self.ptr.length + 7) // 8))
+            buffers.append(pyarrow.foreign_buffer(<intptr_t> self.ptr.null_bitmap, (self.ptr.length + 7) // 8, base=self))
         else:
             buffers.append(None)
 

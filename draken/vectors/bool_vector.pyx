@@ -16,7 +16,6 @@ This matches Arrow's representation:
 
 """
 
-import ctypes
 import pyarrow
 
 from cpython.mem cimport PyMem_Malloc
@@ -45,7 +44,9 @@ cdef class BoolVector(Vector):
             nbytes = (length + 7) >> 3
             self.ptr = alloc_fixed_buffer(DRAKEN_BOOL, length, 1)  # itemsize=1 is logical
             if self.ptr != NULL:
-                self.ptr.data = PyMem_Malloc(nbytes)
+                # allocate raw bytes with libc malloc so free_fixed_buffer (which calls free())
+                # can safely free the buffer later. Do not mix Python allocator and free().
+                self.ptr.data = malloc(nbytes)
                 if self.ptr.data == NULL:
                     raise MemoryError()
             self.owns_data = True
@@ -83,18 +84,78 @@ cdef class BoolVector(Vector):
         # Wrap existing bit-packed buffer
         cdef size_t nbytes = (buf_length(self.ptr) + 7) >> 3
         addr = <intptr_t> self.ptr.data
-        data_ptr = ctypes.cast(int(addr), ctypes.POINTER(ctypes.c_uint8))
-        data_buf = pyarrow.foreign_buffer(ctypes.addressof(data_ptr.contents), nbytes)
+        data_buf = pyarrow.foreign_buffer(addr, nbytes, base=self)
 
         buffers = []
         if self.ptr.null_bitmap != NULL:
-            buffers.append(pyarrow.foreign_buffer(<intptr_t> self.ptr.null_bitmap, (self.ptr.length + 7) // 8))
+            buffers.append(pyarrow.foreign_buffer(<intptr_t> self.ptr.null_bitmap, (self.ptr.length + 7) // 8, base=self))
         else:
             buffers.append(None)
 
         buffers.append(data_buf)
 
         return pyarrow.Array.from_buffers(pyarrow.bool_(), buf_length(self.ptr), buffers)
+
+    cpdef BoolVector and_vector(self, BoolVector other):
+        """Element-wise AND between two BoolVector instances. Returns a new BoolVector."""
+        cdef DrakenFixedBuffer* ptr1 = self.ptr
+        cdef DrakenFixedBuffer* ptr2 = other.ptr
+        cdef Py_ssize_t n = ptr1.length
+        if n != ptr2.length:
+            raise ValueError("Vectors must have the same length")
+
+        cdef Py_ssize_t nbytes = (n + 7) >> 3
+        cdef BoolVector out = BoolVector(<size_t>n)
+        cdef uint8_t* a = <uint8_t*> ptr1.data
+        cdef uint8_t* b = <uint8_t*> ptr2.data
+        cdef uint8_t* d = <uint8_t*> out.ptr.data
+        cdef Py_ssize_t i
+        for i in range(nbytes):
+            d[i] = a[i] & b[i]
+
+        # No null bitmap is created for the result (treat nulls as False)
+        out.ptr.null_bitmap = NULL
+        return out
+
+    cpdef BoolVector or_vector(self, BoolVector other):
+        """Element-wise OR between two BoolVector instances. Returns a new BoolVector."""
+        cdef DrakenFixedBuffer* ptr1 = self.ptr
+        cdef DrakenFixedBuffer* ptr2 = other.ptr
+        cdef Py_ssize_t n = ptr1.length
+        if n != ptr2.length:
+            raise ValueError("Vectors must have the same length")
+
+        cdef Py_ssize_t nbytes = (n + 7) >> 3
+        cdef BoolVector out = BoolVector(<size_t>n)
+        cdef uint8_t* a = <uint8_t*> ptr1.data
+        cdef uint8_t* b = <uint8_t*> ptr2.data
+        cdef uint8_t* d = <uint8_t*> out.ptr.data
+        cdef Py_ssize_t i
+        for i in range(nbytes):
+            d[i] = a[i] | b[i]
+
+        out.ptr.null_bitmap = NULL
+        return out
+
+    cpdef BoolVector xor_vector(self, BoolVector other):
+        """Element-wise XOR between two BoolVector instances. Returns a new BoolVector."""
+        cdef DrakenFixedBuffer* ptr1 = self.ptr
+        cdef DrakenFixedBuffer* ptr2 = other.ptr
+        cdef Py_ssize_t n = ptr1.length
+        if n != ptr2.length:
+            raise ValueError("Vectors must have the same length")
+
+        cdef Py_ssize_t nbytes = (n + 7) >> 3
+        cdef BoolVector out = BoolVector(<size_t>n)
+        cdef uint8_t* a = <uint8_t*> ptr1.data
+        cdef uint8_t* b = <uint8_t*> ptr2.data
+        cdef uint8_t* d = <uint8_t*> out.ptr.data
+        cdef Py_ssize_t i
+        for i in range(nbytes):
+            d[i] = a[i] ^ b[i]
+
+        out.ptr.null_bitmap = NULL
+        return out
 
     # -------- Ops --------
     cpdef BoolVector take(self, int32_t[::1] indices):
