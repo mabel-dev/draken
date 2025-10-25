@@ -7,6 +7,8 @@ from draken.core.buffers cimport DrakenFixedBuffer
 from draken.vectors.vector cimport Vector
 
 cdef class TimestampVector(Vector):
+    cdef object _arrow_data_buf
+    cdef object _arrow_null_buf
     cdef DrakenFixedBuffer* ptr
     cdef bint owns_data
 

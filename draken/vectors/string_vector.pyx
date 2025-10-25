@@ -75,19 +75,21 @@ cdef class StringVector(Vector):
     def to_arrow(self):
         """
         Zero-copy conversion to Arrow StringArray (bytes-based).
+        Keeps a reference to this vector to prevent premature garbage collection.
         """
         cdef DrakenVarBuffer* ptr = self.ptr
         cdef size_t n = ptr.length
 
         # Data buffer: all the concatenated string bytes
-        data_buf = pyarrow.foreign_buffer(<intptr_t>ptr.data, ptr.offsets[n])
+        # Pass self as base object to keep the vector alive
+        data_buf = pyarrow.foreign_buffer(<intptr_t>ptr.data, ptr.offsets[n], base=self)
 
         # Offsets buffer: (n+1) * int32_t entries
-        offs_buf = pyarrow.foreign_buffer(<intptr_t>ptr.offsets, (n + 1) * sizeof(int32_t))
+        offs_buf = pyarrow.foreign_buffer(<intptr_t>ptr.offsets, (n + 1) * sizeof(int32_t), base=self)
 
         # Null bitmap buffer (optional)
         if ptr.null_bitmap != NULL:
-            null_buf = pyarrow.foreign_buffer(<intptr_t>ptr.null_bitmap, (n + 7) // 8)
+            null_buf = pyarrow.foreign_buffer(<intptr_t>ptr.null_bitmap, (n + 7) // 8, base=self)
         else:
             null_buf = None
 

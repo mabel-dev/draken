@@ -21,5 +21,8 @@ cdef class BoolVector(Vector):
     cpdef int8_t[::1] is_null(self)
     cpdef list to_pylist(self)
     cpdef uint64_t[::1] hash(self)
+    cpdef BoolVector and_vector(self, BoolVector other)
+    cpdef BoolVector or_vector(self, BoolVector other)
+    cpdef BoolVector xor_vector(self, BoolVector other)
 
 cdef BoolVector from_arrow(object array)

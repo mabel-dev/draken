@@ -26,6 +26,7 @@ DRAKEN serves as the internal container format for [Opteryx](https://github.com/
 - **Type-specialized vectors**: `Int64Vector`, `Float64Vector`, `StringVector`, `BoolVector`
 - **Morsel-based processing**: Efficient batch data processing containers
 - **Arrow interoperability**: Zero-copy conversion to/from Apache Arrow
+- **Compiled expression evaluators**: High-performance evaluation of expression trees
 - **SIMD optimizations**: Platform-specific performance optimizations
 - **Memory efficiency**: Optimized memory layouts and null handling
 - **C/Cython implementation**: High-performance core written in Cython/C
@@ -124,6 +125,45 @@ result = vector.equals(2)       # Element-wise equality
 # Convert back to Arrow (zero-copy)
 arrow_result = vector.to_arrow()
 ```
+
+## Compiled Expression Evaluation
+
+Draken provides a high-performance compiled expression evaluator for efficiently evaluating complex predicates over morsels:
+
+```python
+import draken
+import pyarrow as pa
+from draken.evaluators import (
+    BinaryExpression,
+    ColumnExpression,
+    LiteralExpression,
+    evaluate
+)
+
+# Create a morsel
+table = pa.table({
+    'x': [1, 2, 3, 4, 5],
+    'y': ['england', 'france', 'england', 'spain', 'england']
+})
+morsel = draken.Morsel.from_arrow(table)
+
+# Build expression: x == 1 AND y == 'england'
+expr1 = BinaryExpression('equals', ColumnExpression('x'), LiteralExpression(1))
+expr2 = BinaryExpression('equals', ColumnExpression('y'), LiteralExpression('england'))
+expr = BinaryExpression('and', expr1, expr2)
+
+# Evaluate - returns boolean vector
+result = draken.evaluate(morsel, expr)
+print(list(result))  # [True, False, False, False, False]
+```
+
+The compiled evaluator:
+- Recognizes common expression patterns
+- Generates optimized single-pass evaluation code
+- Automatically caches compiled evaluators
+- Provides clean API for SQL engine integration
+
+See [Compiled Evaluators Documentation](docs/COMPILED_EVALUATORS.md) for details.
 
 ## Performance
 

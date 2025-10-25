@@ -5,6 +5,7 @@ from libc.stdint cimport uint64_t
 
 from draken.core.buffers cimport DrakenFixedBuffer
 from draken.vectors.vector cimport Vector
+from draken.vectors.bool_vector cimport BoolVector
 
 cdef class Int64Vector(Vector):
     cdef object _arrow_data_buf
@@ -14,18 +15,18 @@ cdef class Int64Vector(Vector):
 
     cpdef Int64Vector take(self, int32_t[::1] indices)
 
-    cpdef int8_t[::1] equals(self, int64_t value)
-    cpdef int8_t[::1] equals_vector(self, Int64Vector other)
-    cpdef int8_t[::1] not_equals(self, int64_t value)
-    cpdef int8_t[::1] not_equals_vector(self, Int64Vector other)
-    cpdef int8_t[::1] greater_than(self, int64_t value)
-    cpdef int8_t[::1] greater_than_vector(self, Int64Vector other)
-    cpdef int8_t[::1] greater_than_or_equals(self, int64_t value)
-    cpdef int8_t[::1] greater_than_or_equals_vector(self, Int64Vector other)
-    cpdef int8_t[::1] less_than(self, int64_t value)
-    cpdef int8_t[::1] less_than_vector(self, Int64Vector other)
-    cpdef int8_t[::1] less_than_or_equals(self, int64_t value)
-    cpdef int8_t[::1] less_than_or_equals_vector(self, Int64Vector other)
+    cpdef BoolVector equals(self, int64_t value)
+    cpdef BoolVector equals_vector(self, Int64Vector other)
+    cpdef BoolVector not_equals(self, int64_t value)
+    cpdef BoolVector not_equals_vector(self, Int64Vector other)
+    cpdef BoolVector greater_than(self, int64_t value)
+    cpdef BoolVector greater_than_vector(self, Int64Vector other)
+    cpdef BoolVector greater_than_or_equals(self, int64_t value)
+    cpdef BoolVector greater_than_or_equals_vector(self, Int64Vector other)
+    cpdef BoolVector less_than(self, int64_t value)
+    cpdef BoolVector less_than_vector(self, Int64Vector other)
+    cpdef BoolVector less_than_or_equals(self, int64_t value)
+    cpdef BoolVector less_than_or_equals_vector(self, Int64Vector other)
 
     cpdef int8_t[::1] is_null(self)
 
