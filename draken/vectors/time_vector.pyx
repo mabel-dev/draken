@@ -18,8 +18,6 @@ This module provides:
 Used for high-performance temporal analytics and columnar data processing in Draken.
 """
 
-import pyarrow
-
 from cpython.mem cimport PyMem_Malloc
 
 from libc.stdint cimport int32_t
@@ -39,6 +37,7 @@ from draken.core.fixed_vector cimport buf_itemsize
 from draken.core.fixed_vector cimport buf_length
 from draken.core.fixed_vector cimport free_fixed_buffer
 from draken.vectors.vector cimport Vector
+from draken._optional import require_pyarrow
 
 # NULL_HASH constant for null hash entries
 cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
@@ -97,13 +96,14 @@ cdef class TimeVector(Vector):
 
     # -------- Interop (owned -> Arrow) --------
     def to_arrow(self):
+        pa = require_pyarrow("TimeVector.to_arrow()")
         cdef size_t nbytes = buf_length(self.ptr) * buf_itemsize(self.ptr)
         addr = <intptr_t> self.ptr.data
-        data_buf = pyarrow.foreign_buffer(addr, nbytes, base=self)
+        data_buf = pa.foreign_buffer(addr, nbytes, base=self)
 
         buffers = []
         if self.ptr.null_bitmap != NULL:
-            buffers.append(pyarrow.foreign_buffer(<intptr_t> self.ptr.null_bitmap, (self.ptr.length + 7) // 8, base=self))
+            buffers.append(pa.foreign_buffer(<intptr_t> self.ptr.null_bitmap, (self.ptr.length + 7) // 8, base=self))
         else:
             buffers.append(None)
 
@@ -111,9 +111,9 @@ cdef class TimeVector(Vector):
 
         # Default to microsecond precision for time64, second for time32
         if self.is_time64:
-            return pyarrow.Array.from_buffers(pyarrow.time64('us'), buf_length(self.ptr), buffers)
+            return pa.Array.from_buffers(pa.time64('us'), buf_length(self.ptr), buffers)
         else:
-            return pyarrow.Array.from_buffers(pyarrow.time32('s'), buf_length(self.ptr), buffers)
+            return pa.Array.from_buffers(pa.time32('s'), buf_length(self.ptr), buffers)
 
     # -------- Example op --------
     cpdef TimeVector take(self, int32_t[::1] indices):
@@ -273,7 +273,8 @@ cdef class TimeVector(Vector):
 
 
 cdef TimeVector from_arrow(object array):
-    cdef bint is_time64 = pyarrow.types.is_time64(array.type)
+    cdef object pa = require_pyarrow("TimeVector.from_arrow()")
+    cdef bint is_time64 = pa.types.is_time64(array.type)
     cdef TimeVector vec = TimeVector(0, is_time64, True)   # wrap=True: no alloc
     vec.ptr = <DrakenFixedBuffer*> malloc(sizeof(DrakenFixedBuffer))
     if vec.ptr == NULL:

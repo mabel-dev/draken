@@ -166,3 +166,4 @@ testdata/**/*.parquet
 **/.DS_Store
 
 hits/**
+draken/compiled_evaluators/generated*.pyx

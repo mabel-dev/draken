@@ -16,8 +16,8 @@ This module provides:
 - Fast equality, null handling, and hashing
 """
 
-import pyarrow
-
+from cpython.buffer cimport PyBUF_READ
+from cpython.memoryview cimport PyMemoryView_FromMemory
 from cpython.mem cimport PyMem_Malloc
 from cpython.bytes cimport PyBytes_AS_STRING
 from cpython.bytes cimport PyBytes_FromStringAndSize
@@ -29,6 +29,7 @@ from libc.string cimport memcpy, memset, memcmp
 from libc.stdint cimport uint64_t
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc
+from libc.stdlib cimport realloc
 from libc.string cimport memcmp
 from libc.string cimport memcpy
 
@@ -36,8 +37,8 @@ from draken.core.buffers cimport DrakenVarBuffer
 from draken.core.buffers cimport DRAKEN_STRING
 from draken.core.var_vector cimport alloc_var_buffer
 from draken.core.var_vector cimport buf_dtype
-from draken.core.var_vector cimport free_var_buffer
 from draken.vectors.vector cimport Vector
+from draken._optional import require_pyarrow
 
 
 # Constant for null hashes
@@ -58,14 +59,12 @@ cdef class StringVector(Vector):
             self.ptr = alloc_var_buffer(DRAKEN_STRING, length, bytes_cap)
             self.owns_data = True
 
-    def __dealloc__(self):
-        if self.owns_data and self.ptr is not NULL:
-            free_var_buffer(self.ptr, True)
-            self.ptr = NULL
-
     @property
     def length(self):
-        """Return the number of elements in the vector."""
+        """Number of values currently stored in the vector."""
+        return self.ptr.length
+
+    def __len__(self):
         return self.ptr.length
 
     @property
@@ -77,23 +76,24 @@ cdef class StringVector(Vector):
         Zero-copy conversion to Arrow StringArray (bytes-based).
         Keeps a reference to this vector to prevent premature garbage collection.
         """
+        pa = require_pyarrow("StringVector.to_arrow()")
         cdef DrakenVarBuffer* ptr = self.ptr
         cdef size_t n = ptr.length
 
         # Data buffer: all the concatenated string bytes
         # Pass self as base object to keep the vector alive
-        data_buf = pyarrow.foreign_buffer(<intptr_t>ptr.data, ptr.offsets[n], base=self)
+        data_buf = pa.foreign_buffer(<intptr_t>ptr.data, ptr.offsets[n], base=self)
 
         # Offsets buffer: (n+1) * int32_t entries
-        offs_buf = pyarrow.foreign_buffer(<intptr_t>ptr.offsets, (n + 1) * sizeof(int32_t), base=self)
+        offs_buf = pa.foreign_buffer(<intptr_t>ptr.offsets, (n + 1) * sizeof(int32_t), base=self)
 
         # Null bitmap buffer (optional)
         if ptr.null_bitmap != NULL:
-            null_buf = pyarrow.foreign_buffer(<intptr_t>ptr.null_bitmap, (n + 7) // 8, base=self)
+            null_buf = pa.foreign_buffer(<intptr_t>ptr.null_bitmap, (n + 7) // 8, base=self)
         else:
             null_buf = None
 
-        return pyarrow.Array.from_buffers(pyarrow.binary(), n, [null_buf, offs_buf, data_buf])
+        return pa.Array.from_buffers(pa.binary(), n, [null_buf, offs_buf, data_buf])
 
     def __getitem__(self, Py_ssize_t i) -> bytes:
         """
@@ -108,6 +108,53 @@ cdef class StringVector(Vector):
         cdef Py_ssize_t nbytes = end - start
         cdef char* base = <char*>ptr.data
         return PyBytes_FromStringAndSize(base + start, nbytes)
+
+    def __iter__(self):
+        return _StringVectorIterator(self)
+
+    cpdef Py_ssize_t byte_length(self, Py_ssize_t i):
+        """Return the number of bytes for row ``i`` without materializing the value."""
+        cdef DrakenVarBuffer* ptr = self.ptr
+        if i < 0 or i >= ptr.length:
+            raise IndexError("Index out of range")
+        return ptr.offsets[i + 1] - ptr.offsets[i]
+
+    cpdef object buffers(self):
+        """Expose data, offsets, and null bitmap buffers as zero-copy views."""
+        cdef DrakenVarBuffer* ptr = self.ptr
+        cdef Py_ssize_t n = ptr.length
+        cdef Py_ssize_t total_bytes = ptr.offsets[n]
+        cdef object data_view
+
+        if total_bytes <= 0 or ptr.data == NULL:
+            data_view = memoryview(b"")
+        else:
+            data_view = <uint8_t[:total_bytes]> ptr.data
+
+        return (
+            data_view,
+            <int32_t[:n + 1]> ptr.offsets,
+            self.null_bitmap(),
+        )
+
+    cpdef object null_bitmap(self):
+        """Return the null bitmap as a Python ``memoryview``, or ``None`` if all values are valid."""
+        cdef DrakenVarBuffer* ptr = self.ptr
+        cdef Py_ssize_t nb_size
+        if ptr.null_bitmap == NULL:
+            return None
+        nb_size = (ptr.length + 7) // 8
+        if nb_size == 0:
+            nb_size = 1
+        return PyMemoryView_FromMemory(<char*>ptr.null_bitmap, nb_size, PyBUF_READ)
+
+    cpdef int32_t[::1] lengths(self):
+        """Return a direct view over the offsets buffer for fast length computations."""
+        return <int32_t[: self.ptr.length + 1]> self.ptr.offsets
+
+    cpdef object view(self):
+        """Return a lightweight pointer/length view for zero-copy consumers."""
+        return _StringVectorView(self)
 
     @property
     def null_count(self):
@@ -131,6 +178,7 @@ cdef class StringVector(Vector):
         """
         cdef DrakenVarBuffer* ptr = self.ptr
         cdef Py_ssize_t n = ptr.length
+        cdef uint8_t* nb_ptr = ptr.null_bitmap
         cdef int8_t* buf = <int8_t*> PyMem_Malloc(n)
         if buf == NULL:
             raise MemoryError()
@@ -139,8 +187,14 @@ cdef class StringVector(Vector):
         cdef Py_ssize_t val_len = len(value)
         cdef int32_t start, end, can_len
         cdef int i
+        cdef uint8_t bit
 
         for i in range(n):
+            if nb_ptr != NULL:
+                bit = (nb_ptr[i >> 3] >> (i & 7)) & 1
+                if bit == 0:
+                    buf[i] = 0
+                    continue
             start = ptr.offsets[i]
             end = ptr.offsets[i+1]
             can_len = end - start
@@ -164,10 +218,11 @@ cdef class StringVector(Vector):
         cdef int32_t start, end
         cdef uint64_t h
         cdef uint8_t* p
-        cdef Py_ssize_t j, can_len
+        cdef Py_ssize_t j, can_len, i
+        cdef uint8_t* nb_ptr = ptr.null_bitmap
         for j in range(n):
-            if ptr.null_bitmap != NULL:
-                if (ptr.null_bitmap[j >> 3] >> (j & 7)) & 1 == 0:
+            if nb_ptr != NULL:
+                if (nb_ptr[j >> 3] >> (j & 7)) & 1 == 0:
                     buf[j] = NULL_HASH
                     continue
 
@@ -195,8 +250,9 @@ cdef class StringVector(Vector):
         cdef int32_t start, end, nbytes
         cdef char* base = <char*>ptr.data
         cdef uint8_t byte, bit
+        cdef uint8_t* nb_ptr = ptr.null_bitmap
 
-        if ptr.null_bitmap == NULL:
+        if nb_ptr == NULL:
             for i in range(n):
                 start = ptr.offsets[i]
                 end = ptr.offsets[i+1]
@@ -204,7 +260,7 @@ cdef class StringVector(Vector):
                 out.append((<bytes>PyBytes_FromStringAndSize(base + start, nbytes)).decode("utf8"))
         else:
             for i in range(n):
-                byte = ptr.null_bitmap[i >> 3]
+                byte = nb_ptr[i >> 3]
                 bit = (byte >> (i & 7)) & 1
                 if not bit:
                     out.append(None)
@@ -287,6 +343,272 @@ cdef class StringVector(Vector):
         for i in range(k):
             vals.append(self[i])
         return f"<StringVector len={self.ptr.length} values={vals}>"
+
+
+cdef class _StringVectorIterator:
+    """Efficient iterator that avoids repeated attribute lookups during scans."""
+
+    cdef StringVector _vec
+    cdef DrakenVarBuffer* _ptr
+    cdef Py_ssize_t _pos
+    cdef Py_ssize_t _length
+    cdef char* _base
+
+    def __cinit__(self, StringVector vec):
+        self._vec = vec
+        self._ptr = vec.ptr
+        self._pos = 0
+        self._length = self._ptr.length
+        self._base = <char*>self._ptr.data
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._pos >= self._length:
+            raise StopIteration()
+
+        cdef Py_ssize_t i = self._pos
+        cdef int32_t start = self._ptr.offsets[i]
+        cdef int32_t end = self._ptr.offsets[i + 1]
+        cdef Py_ssize_t nbytes = end - start
+        self._pos += 1
+        return PyBytes_FromStringAndSize(self._base + start, nbytes)
+
+
+cdef class _StringVectorView:
+    """Zero-copy helper exposing raw pointer/length access."""
+
+    def __cinit__(self, StringVector vec):
+        self._ptr = vec.ptr
+        self._data = <char*> self._ptr.data
+        self._offsets = self._ptr.offsets
+        self._nulls = self._ptr.null_bitmap
+
+    cpdef intptr_t value_ptr(self, Py_ssize_t i):
+        if i < 0 or i >= self._ptr.length:
+            raise IndexError("Index out of range")
+        return <intptr_t> (self._data + self._offsets[i])
+
+    cpdef Py_ssize_t value_len(self, Py_ssize_t i):
+        if i < 0 or i >= self._ptr.length:
+            raise IndexError("Index out of range")
+        return self._offsets[i + 1] - self._offsets[i]
+
+    cpdef bint is_null(self, Py_ssize_t i):
+        if i < 0 or i >= self._ptr.length:
+            raise IndexError("Index out of range")
+        if self._nulls == NULL:
+            return False
+        return ((self._nulls[i >> 3] >> (i & 7)) & 1) == 0
+
+
+cdef class StringVectorBuilder:
+    """Utility for constructing ``StringVector`` instances with controlled preallocation."""
+
+    cdef StringVector _vec
+    cdef DrakenVarBuffer* _ptr
+    cdef Py_ssize_t _length
+    cdef Py_ssize_t _next_index
+    cdef Py_ssize_t _bytes_cap
+    cdef Py_ssize_t _offset
+    cdef bint _finished
+    cdef bint _resizable
+    cdef bint _strict_capacity
+    cdef bint _mask_user_provided
+
+    def __cinit__(self, Py_ssize_t length, Py_ssize_t bytes_capacity,
+                  bint resizable=False, bint strict_capacity=False):
+        if length < 0:
+            raise ValueError("length must be non-negative")
+        if bytes_capacity < 0:
+            raise ValueError("bytes_capacity must be non-negative")
+
+        self._vec = StringVector(length, bytes_capacity)
+        self._ptr = self._vec.ptr
+        self._length = length
+        self._next_index = 0
+        self._bytes_cap = bytes_capacity
+        self._offset = 0
+        self._finished = False
+        self._resizable = resizable
+        self._strict_capacity = strict_capacity
+        self._mask_user_provided = False
+
+        if self._ptr.offsets != NULL:
+            self._ptr.offsets[0] = 0
+
+    def __dealloc__(self):
+        # Allow the vector to GC naturally; nothing special to do.
+        pass
+
+    @classmethod
+    def with_counts(cls, Py_ssize_t length, Py_ssize_t total_bytes):
+        """Create a builder with an exact byte budget that must be fully consumed."""
+        return cls(length, total_bytes, False, True)
+
+    @classmethod
+    def with_estimate(cls, Py_ssize_t length, Py_ssize_t est_avg_bytes):
+        """Create a resizable builder using an average byte estimate per row."""
+        if length < 0:
+            raise ValueError("length must be non-negative")
+        if est_avg_bytes < 0:
+            raise ValueError("est_avg_bytes must be non-negative")
+        initial = length * est_avg_bytes
+        if initial <= 0:
+            initial = max(length, 64)
+        return cls(length, initial, True, False)
+
+    def __len__(self):
+        return self._length
+
+    property bytes_capacity:
+        def __get__(self):
+            return self._bytes_cap
+
+    property bytes_used:
+        def __get__(self):
+            return self._offset
+
+    property remaining_bytes:
+        def __get__(self):
+            return self._bytes_cap - self._offset
+
+    cpdef void append(self, bytes value):
+        """Append a value at the next position, copying bytes into the backing buffer."""
+        self._append_with_ptr(self._next_index, PyBytes_AS_STRING(value), len(value))
+
+    cpdef void append_view(self, const uint8_t[::1] value):
+        """Append from a read-only memoryview without creating an intermediate bytes object."""
+        cdef Py_ssize_t size = value.shape[0]
+        cdef const uint8_t* ptr = NULL
+        if size == 0:
+            self._append_with_ptr(self._next_index, NULL, 0)
+        else:
+            ptr = &value[0]
+            self._append_with_ptr(self._next_index, <const char*>ptr, size)
+
+    cpdef void append_null(self):
+        """Append a null entry without advancing the byte offset."""
+        self._set_null(self._next_index)
+
+    cpdef void set(self, Py_ssize_t index, bytes value):
+        """Set ``index`` to ``value`` (must be the next slot)."""
+        self._append_with_ptr(index, PyBytes_AS_STRING(value), len(value))
+
+    cpdef void set_view(self, Py_ssize_t index, const uint8_t[::1] value):
+        cdef Py_ssize_t size = value.shape[0]
+        cdef const uint8_t* ptr = NULL
+        if size > 0:
+            ptr = &value[0]
+        self._append_with_ptr(index, <const char*>ptr, size)
+
+    cpdef void set_null(self, Py_ssize_t index):
+        self._set_null(index)
+
+    cpdef void set_validity_mask(self, const uint8_t[::1] mask):
+        """Install a user-supplied validity bitmap for the entire builder."""
+        cdef Py_ssize_t nb_size = (self._length + 7) // 8
+        if nb_size == 0:
+            nb_size = 1
+        if mask.shape[0] < nb_size:
+            raise ValueError("validity mask is too small for declared length")
+        if self._ptr.null_bitmap == NULL:
+            self._ptr.null_bitmap = <uint8_t*> malloc(nb_size)
+            if self._ptr.null_bitmap == NULL:
+                raise MemoryError()
+        memcpy(self._ptr.null_bitmap, &mask[0], nb_size)
+        self._mask_user_provided = True
+
+    cpdef StringVector finish(self):
+        """Finalize construction and hand off the built vector."""
+        if self._finished:
+            return self._vec
+        if self._next_index != self._length:
+            raise ValueError(
+                f"builder incomplete: appended {self._next_index} of {self._length} entries"
+            )
+        if self._ptr.offsets[self._length] != self._offset:
+            self._ptr.offsets[self._length] = <int32_t>self._offset
+        if self._strict_capacity and self._offset != self._bytes_cap:
+            raise ValueError(
+                f"builder consumed {self._offset} bytes but expected {self._bytes_cap}"
+            )
+        self._finished = True
+        return self._vec
+
+    cdef void _append_with_ptr(self, Py_ssize_t index, const char* src, Py_ssize_t length) except *:
+        self._require_index(index)
+        if length < 0:
+            raise ValueError("length must be non-negative")
+
+        self._ensure_capacity(length)
+
+        if length > 0 and src != NULL:
+            memcpy(<char*>self._ptr.data + self._offset, src, length)
+
+        if self._ptr.null_bitmap != NULL and not self._mask_user_provided:
+            self._ptr.null_bitmap[index >> 3] |= (1 << (index & 7))
+
+        self._offset += length
+        self._next_index += 1
+        self._ptr.offsets[self._next_index] = <int32_t>self._offset
+
+    cdef void _set_null(self, Py_ssize_t index) except *:
+        self._require_index(index)
+        self._ensure_capacity(0)
+        self._initialize_null_bitmap()
+        self._ptr.null_bitmap[index >> 3] &= ~(1 << (index & 7))
+        self._next_index += 1
+        self._ptr.offsets[self._next_index] = <int32_t>self._offset
+
+    cdef void _ensure_capacity(self, Py_ssize_t to_add) except *:
+        if to_add <= 0:
+            return
+        if self._offset + to_add <= self._bytes_cap:
+            return
+        if not self._resizable:
+            raise ValueError("not enough remaining capacity for value")
+
+        cdef Py_ssize_t new_cap = self._bytes_cap
+        if new_cap == 0:
+            new_cap = to_add
+        while new_cap < self._offset + to_add:
+            if new_cap < 64:
+                new_cap = 64
+            else:
+                new_cap = new_cap * 2
+        cdef uint8_t* new_data
+        if self._ptr.data == NULL:
+            new_data = <uint8_t*> malloc(new_cap)
+        else:
+            new_data = <uint8_t*> realloc(self._ptr.data, new_cap)
+        if new_data == NULL:
+            raise MemoryError()
+        self._ptr.data = new_data
+        self._bytes_cap = new_cap
+
+    cdef void _initialize_null_bitmap(self) except *:
+        cdef Py_ssize_t nb_size
+        if self._ptr.null_bitmap == NULL:
+            nb_size = (self._length + 7) // 8
+            if nb_size == 0:
+                nb_size = 1
+            self._ptr.null_bitmap = <uint8_t*> malloc(nb_size)
+            if self._ptr.null_bitmap == NULL:
+                raise MemoryError()
+            memset(self._ptr.null_bitmap, 0xFF, nb_size)
+            self._mask_user_provided = False
+
+    cdef void _require_index(self, Py_ssize_t index) except *:
+        if self._finished:
+            raise ValueError("builder already finished")
+        if index < 0 or index >= self._length:
+            raise IndexError("index out of bounds")
+        if index != self._next_index:
+            raise IndexError(f"builder expects index {self._next_index}, got {index}")
+        if self._ptr.offsets == NULL:
+            raise ValueError("builder offsets buffer is missing")
 
 
 cdef StringVector from_arrow(object array):

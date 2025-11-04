@@ -27,5 +27,9 @@ cdef class Vector:
     def from_arrow(cls, arrow_array):
         return vector_from_arrow(arrow_array)
 
+    cpdef object null_bitmap(self):
+        """Return the null bitmap for this vector, or ``None`` when the vector has no nulls."""
+        return None
+
     def __str__(self):
         return f"<{self.__class__.__name__} len={len(self)}>"

@@ -20,7 +20,7 @@ coverage:
 
 test:
 	python -m pip install --quiet --upgrade pytest
-	python -m pytest -n auto --color=yes
+	python -m pytest -n 4 --color=yes
 
 compile:
 	clear

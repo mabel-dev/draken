@@ -18,11 +18,9 @@ For now, this is a lightweight wrapper around PyArrow arrays since array types
 can contain any element type and require complex handling.
 """
 
-import pyarrow
-import pyarrow.compute as pc
-
 from draken.vectors.vector cimport Vector
 from draken.core.buffers cimport DRAKEN_ARRAY
+from draken._optional import require_pyarrow
 
 
 cdef class ArrayVector(Vector):
@@ -57,13 +55,17 @@ cdef class ArrayVector(Vector):
 
     # -------- Generic operations --------
     def take(self, indices):
-        indices_arr = pyarrow.array(indices, type=pyarrow.int32())
+        pa = require_pyarrow("ArrayVector.take()")
+        pc = pa.compute
+        indices_arr = pa.array(indices, type=pa.int32())
         out = pc.take(self._arr, indices_arr)
         result = ArrayVector()
         result._arr = out
         return result
 
     def is_null(self):
+        pa = require_pyarrow("ArrayVector.is_null()")
+        pc = pa.compute
         return pc.is_null(self._arr).to_numpy(False).astype("bool")
 
     @property

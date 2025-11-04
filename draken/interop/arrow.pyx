@@ -17,8 +17,6 @@ This module provides:
 Used to enable efficient interchange between Draken and Apache Arrow for analytics and data science workflows.
 """
 
-import pyarrow
-
 from libc.stdlib cimport free
 from libc.stdlib cimport malloc
 
@@ -38,6 +36,7 @@ from draken.vectors.time_vector cimport from_arrow as time_from_arrow
 from draken.vectors.array_vector cimport from_arrow as array_from_arrow
 
 from draken.vectors.arrow_vector import from_arrow as arrow_from_arrow
+from draken._optional import require_pyarrow
 
 cdef void release_arrow_array(ArrowArray* arr) noexcept:
     free(<void*>arr.buffers)
@@ -84,28 +83,29 @@ cdef void expose_draken_fixed_as_arrow(
 
 
 cpdef object vector_from_arrow(object array):
+    pa = require_pyarrow("vector_from_arrow()")
 
     if hasattr(array, "combine_chunks"):
         array = array.combine_chunks()
 
     pa_type = array.type
-    if pa_type.equals(pyarrow.int64()):
+    if pa_type.equals(pa.int64()):
         return int64_from_arrow(array)
-    if pa_type.equals(pyarrow.string()) or pa_type.equals(pyarrow.binary()):
+    if pa_type.equals(pa.string()) or pa_type.equals(pa.binary()):
         return string_from_arrow(array)
-    if pa_type.equals(pyarrow.float64()):
+    if pa_type.equals(pa.float64()):
         return float64_from_arrow(array)
-    if pa_type.equals(pyarrow.bool_()):
+    if pa_type.equals(pa.bool_()):
         return bool_from_arrow(array)
-    if pyarrow.types.is_date32(pa_type):
+    if pa.types.is_date32(pa_type):
         return date32_from_arrow(array)
-    if pyarrow.types.is_timestamp(pa_type):
+    if pa.types.is_timestamp(pa_type):
         return timestamp_from_arrow(array)
-    if pyarrow.types.is_time32(pa_type) or pyarrow.types.is_time64(pa_type):
+    if pa.types.is_time32(pa_type) or pa.types.is_time64(pa_type):
         return time_from_arrow(array)
-    if pyarrow.types.is_list(pa_type) or pyarrow.types.is_large_list(pa_type):
+    if pa.types.is_list(pa_type) or pa.types.is_large_list(pa_type):
         return array_from_arrow(array)
-    if isinstance(pa_type, pyarrow.StructType):
+    if isinstance(pa_type, pa.StructType):
         return string_from_arrow_struct(array)
 
     # fall back implementation (just wrap pyarrow compute)
@@ -117,27 +117,28 @@ cpdef DrakenType arrow_type_to_draken(object dtype):
     Convert a PyArrow DataType to a DrakenType enum.
     Raises TypeError if unsupported.
     """
-    if pyarrow.types.is_int8(dtype):
+    pa = require_pyarrow("arrow_type_to_draken()")
+    if pa.types.is_int8(dtype):
         return DrakenType.DRAKEN_INT8
-    elif pyarrow.types.is_int16(dtype):
+    elif pa.types.is_int16(dtype):
         return DrakenType.DRAKEN_INT16
-    elif pyarrow.types.is_int32(dtype):
+    elif pa.types.is_int32(dtype):
         return DrakenType.DRAKEN_INT32
-    elif pyarrow.types.is_int64(dtype):
+    elif pa.types.is_int64(dtype):
         return DrakenType.DRAKEN_INT64
-    elif pyarrow.types.is_float32(dtype):
+    elif pa.types.is_float32(dtype):
         return DrakenType.DRAKEN_FLOAT32
-    elif pyarrow.types.is_float64(dtype):
+    elif pa.types.is_float64(dtype):
         return DrakenType.DRAKEN_FLOAT64
-    elif pyarrow.types.is_date32(dtype):
+    elif pa.types.is_date32(dtype):
         return DrakenType.DRAKEN_DATE32
-    elif pyarrow.types.is_timestamp(dtype):
+    elif pa.types.is_timestamp(dtype):
         return DrakenType.DRAKEN_TIMESTAMP64
-    elif pyarrow.types.is_boolean(dtype):
+    elif pa.types.is_boolean(dtype):
         return DrakenType.DRAKEN_BOOL
-    elif pyarrow.types.is_string(dtype) or pyarrow.types.is_large_string(dtype):
+    elif pa.types.is_string(dtype) or pa.types.is_large_string(dtype):
         return DrakenType.DRAKEN_STRING
-    elif pyarrow.types.is_list(dtype) or pyarrow.types.is_large_list(dtype):
+    elif pa.types.is_list(dtype) or pa.types.is_large_list(dtype):
         return DrakenType.DRAKEN_ARRAY
 
     return DrakenType.DRAKEN_NON_NATIVE

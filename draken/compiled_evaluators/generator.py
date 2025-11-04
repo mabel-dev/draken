@@ -72,6 +72,13 @@ def ensure_compiled_evaluator(key: str, expr_ast) -> Tuple[str, object]:
 
 _PYX_TEMPLATE = r"""
 # cython: language_level=3
+# cython: nonecheck=False
+# cython: cdivision=True
+# cython: initializedcheck=False
+# cython: infer_types=True
+# cython: wraparound=False
+# cython: boundscheck=False
+
 from libc.stdint cimport uint8_t, intptr_t
 from libc.stdlib cimport malloc, free
 
@@ -82,10 +89,7 @@ def _ptr_to_bytes(void *data, size_t nbytes):
     # Create a Python bytes object from a raw pointer
     return bytes(<char *> data, nbytes)
 
-def evaluate(morsel: Morsel):
-    # Generated evaluator: consumer should replace this body with the
-    # expression-specific implementation.
-    raise NotImplementedError('Generated evaluator body not implemented')
+# Generated code below this point
 """
 
 
@@ -127,7 +131,7 @@ def _emit_pyx_for_expr(expr_ast) -> str:
 
     # Build imports and header
     header = [_PYX_TEMPLATE]
-    body_lines = ["def evaluate(morsel):"]
+    body_lines = ["def evaluate(morsel: Morsel):"]
     body_lines.append("    # Acquire comparison masks for each atom")
     body_lines.append("    masks = []")
 
