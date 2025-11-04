@@ -80,7 +80,7 @@ cdef class TimeVector(Vector):
         return buf_dtype(self.ptr)
 
     def __getitem__(self, Py_ssize_t i):
-        """Return the value at index i."""
+        """Return the value at index i, or None if null."""
         cdef DrakenFixedBuffer* ptr = self.ptr
         if i < 0 or i >= ptr.length:
             raise IndexError("Index out of bounds")
@@ -88,7 +88,7 @@ cdef class TimeVector(Vector):
             byte = ptr.null_bitmap[i >> 3]
             bit = (byte >> (i & 7)) & 1
             if not bit:
-                raise ValueError("Value at index %d is null" % i)
+                return None
         if self.is_time64:
             return (<int64_t*>ptr.data)[i]
         else:

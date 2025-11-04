@@ -95,18 +95,30 @@ cdef class StringVector(Vector):
 
         return pa.Array.from_buffers(pa.binary(), n, [null_buf, offs_buf, data_buf])
 
-    def __getitem__(self, Py_ssize_t i) -> bytes:
+    def __getitem__(self, Py_ssize_t i):
         """
-        Return entry i as raw bytes.
+        Return entry i as raw bytes, or None if null.
         """
         cdef DrakenVarBuffer* ptr = self.ptr
+        cdef uint8_t byte, bit
+        cdef int32_t start, end
+        cdef Py_ssize_t nbytes
+        cdef char* base
+
         if i < 0 or i >= ptr.length:
             raise IndexError("Index out of range")
 
-        cdef int32_t start = ptr.offsets[i]
-        cdef int32_t end = ptr.offsets[i+1]
-        cdef Py_ssize_t nbytes = end - start
-        cdef char* base = <char*>ptr.data
+        # Check for null value
+        if ptr.null_bitmap != NULL:
+            byte = ptr.null_bitmap[i >> 3]
+            bit = (byte >> (i & 7)) & 1
+            if not bit:
+                return None
+
+        start = ptr.offsets[i]
+        end = ptr.offsets[i+1]
+        nbytes = end - start
+        base = <char*>ptr.data
         return PyBytes_FromStringAndSize(base + start, nbytes)
 
     def __iter__(self):
@@ -369,9 +381,21 @@ cdef class _StringVectorIterator:
             raise StopIteration()
 
         cdef Py_ssize_t i = self._pos
-        cdef int32_t start = self._ptr.offsets[i]
-        cdef int32_t end = self._ptr.offsets[i + 1]
-        cdef Py_ssize_t nbytes = end - start
+        cdef uint8_t byte, bit
+        cdef int32_t start, end
+        cdef Py_ssize_t nbytes
+
+        # Check for null value
+        if self._ptr.null_bitmap != NULL:
+            byte = self._ptr.null_bitmap[i >> 3]
+            bit = (byte >> (i & 7)) & 1
+            if not bit:
+                self._pos += 1
+                return None
+
+        start = self._ptr.offsets[i]
+        end = self._ptr.offsets[i + 1]
+        nbytes = end - start
         self._pos += 1
         return PyBytes_FromStringAndSize(self._base + start, nbytes)
 
