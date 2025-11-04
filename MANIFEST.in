@@ -1,0 +1,25 @@
+# Include C/C++ header files needed for Cython compilation
+include draken/core/*.h
+include draken/interop/*.h
+
+# Include Cython definition files
+include draken/**/*.pxd
+include draken/**/*.pyx
+
+# Include core C++ implementation files
+include draken/core/*.cpp
+
+# Include documentation
+include README.md
+include LICENSE
+include CONTRIBUTING.md
+
+# Include type stubs if they exist
+recursive-include draken *.pyi
+
+# Exclude build artifacts and caches
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__
+global-exclude *.so
+global-exclude *.c

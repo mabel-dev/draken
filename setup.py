@@ -212,7 +212,13 @@ if SHOULD_BUILD_EXTENSIONS:
     #    "install_requires": required,
         "ext_modules": cythonize(extensions),
         "package_data": {
-            "": ["*.pyx", "*.pxd"],
+            "draken.core": ["*.pyx", "*.pxd", "*.h", "*.cpp"],
+            "draken.interop": ["*.pyx", "*.pxd", "*.h"],
+            "draken.vectors": ["*.pyx", "*.pxd"],
+            "draken.morsels": ["*.pyx", "*.pxd"],
+            "draken.compiled": ["*.pyx", "*.pxd"],
+            "draken.compiled_evaluators": ["*.pyx", "*.pxd"],
+            "draken.evaluators": ["*.pyx", "*.pxd"],
         },
         "compiler_directives": COMPILER_DIRECTIVES,
     }
