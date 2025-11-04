@@ -1,17 +1,19 @@
 [project]
 name = "Draken"
 description = "Cython/Arrow Interop"
-dependencies = [
-    "pyarrow"
-]
-requires-python = '>=3.11'
-readme = 'dynamic'
-authors = [{name='Justin Joyce', email='justin.joyce@joocer.com'}]
-maintainers = [{name='Justin Joyce', email='justin.joyce@joocer.com'}]
-version = '0.0.2'
+dependencies = []
+requires-python = ">=3.11"
+readme = "dynamic"
+authors = [{name="Justin Joyce", email="justin.joyce@joocer.com"}]
+maintainers = [{name="Justin Joyce", email="justin.joyce@joocer.com"}]
+version = "0.3.0-beta.77"
 
 [project.optional-dependencies]
+arrow = [
+    "pyarrow",
+]
 dev = [
+    "pyarrow",
     "cython",
     "opteryx"
 ]

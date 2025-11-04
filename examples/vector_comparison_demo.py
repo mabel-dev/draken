@@ -28,6 +28,7 @@ def main():
     arr1 = pa.array([1, 2, 3, 4, 5], type=pa.int64())
     arr2 = pa.array([1, 3, 3, 2, 6], type=pa.int64())
     
+    from draken import Vector
     vec1 = Vector.from_arrow(arr1)
     vec2 = Vector.from_arrow(arr2)
     

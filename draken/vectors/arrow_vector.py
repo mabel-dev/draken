@@ -14,26 +14,24 @@ This allows Draken to handle any Arrow-compatible data type while maintaining
 a consistent API, even before native implementations are developed.
 """
 
-import pyarrow
-import pyarrow.compute as pc
+from __future__ import annotations
 
+from typing import Any
+
+from draken._optional import require_pyarrow
 from draken.vectors.vector import Vector
 
 
 class ArrowVector(Vector):
-    """
-    Fallback Vector implementation backed by a pyarrow.Array.
-    This is used for types that don't yet have a native Vector.
+    """Fallback Vector implementation backed by a ``pyarrow.Array``."""
 
-    - Wraps any pyarrow.Array
-    - Methods mirror Vector API
-    - Delegates to pyarrow.compute
-    """
-
-    def __init__(self, arr: pyarrow.Array):
-        if not isinstance(arr, pyarrow.Array):
-            raise TypeError("ArrowBackedVector requires a pyarrow.Array")
+    def __init__(self, arr: Any):
+        pa = require_pyarrow("ArrowVector")
+        if not isinstance(arr, pa.Array):
+            raise TypeError("ArrowVector requires a pyarrow.Array")
         self._arr = arr
+        self._pa = pa
+        self._pc = pa.compute
 
     # -------- Core metadata --------
     @property
@@ -66,39 +64,39 @@ class ArrowVector(Vector):
 
     # -------- Generic operations --------
     def take(self, indices) -> "ArrowVector":
-        indices_arr = pyarrow.array(indices, type=pyarrow.int32())
-        out = pc.take(self._arr, indices_arr)
+        indices_arr = self._pa.array(indices, type=self._pa.int32())
+        out = self._pc.take(self._arr, indices_arr)
         return ArrowVector(out)
 
     def equals(self, value):
-        return pc.equal(self._arr, value).to_numpy(False).astype("bool")
+        return self._pc.equal(self._arr, value).to_numpy(False).astype("bool")
 
     def not_equals(self, value):
-        return pc.not_equal(self._arr, value).to_numpy(False).astype("bool")
+        return self._pc.not_equal(self._arr, value).to_numpy(False).astype("bool")
 
     def greater_than(self, value):
-        return pc.greater(self._arr, value).to_numpy(False).astype("bool")
+        return self._pc.greater(self._arr, value).to_numpy(False).astype("bool")
 
     def greater_than_or_equals(self, value):
-        return pc.greater_equal(self._arr, value).to_numpy(False).astype("bool")
+        return self._pc.greater_equal(self._arr, value).to_numpy(False).astype("bool")
 
     def less_than(self, value):
-        return pc.less(self._arr, value).to_numpy(False).astype("bool")
+        return self._pc.less(self._arr, value).to_numpy(False).astype("bool")
 
     def less_than_or_equals(self, value):
-        return pc.less_equal(self._arr, value).to_numpy(False).astype("bool")
+        return self._pc.less_equal(self._arr, value).to_numpy(False).astype("bool")
 
     def sum(self):
-        return pc.sum(self._arr).as_py()
+        return self._pc.sum(self._arr).as_py()
 
     def min(self):
-        return pc.min(self._arr).as_py()
+        return self._pc.min(self._arr).as_py()
 
     def max(self):
-        return pc.max(self._arr).as_py()
+        return self._pc.max(self._arr).as_py()
 
     def is_null(self):
-        return pc.is_null(self._arr).to_numpy(False).astype("bool")
+        return self._pc.is_null(self._arr).to_numpy(False).astype("bool")
 
     @property
     def null_count(self) -> int:
@@ -111,7 +109,7 @@ class ArrowVector(Vector):
     def hash(self):
         # Arrow has experimental hash kernels; fallback: use Python's hash
         try:
-            return pc.hash(self._arr).to_numpy(False).astype("uint64")
+            return self._pc.hash(self._arr).to_numpy(False).astype("uint64")
         except Exception:
             return [hash(v) if v is not None else 0 for v in self._arr.to_pylist()]
 
@@ -120,5 +118,5 @@ class ArrowVector(Vector):
 
 
 # convenience
-def from_arrow(array: pyarrow.Array) -> ArrowVector:
+def from_arrow(array: Any) -> ArrowVector:
     return ArrowVector(array)

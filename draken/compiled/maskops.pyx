@@ -1,4 +1,11 @@
 # cython: language_level=3
+# cython: nonecheck=False
+# cython: cdivision=True
+# cython: initializedcheck=False
+# cython: infer_types=True
+# cython: wraparound=False
+# cython: boundscheck=False
+
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc, free
 

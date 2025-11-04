@@ -18,8 +18,6 @@ This module provides:
 Used for high-performance analytics and columnar data processing in Draken.
 """
 
-import pyarrow
-
 from cpython.mem cimport PyMem_Malloc
 
 from libc.stdint cimport int32_t
@@ -39,6 +37,7 @@ from draken.core.fixed_vector cimport buf_length
 from draken.core.fixed_vector cimport free_fixed_buffer
 from draken.vectors.vector cimport Vector
 from draken.vectors.bool_vector cimport BoolVector
+from draken._optional import require_pyarrow
 
 # NULL_HASH constant for null hash entries
 cdef uint64_t NULL_HASH = <uint64_t>0x9e3779b97f4a7c15
@@ -91,19 +90,20 @@ cdef class Int64Vector(Vector):
 
     # -------- Interop (owned -> Arrow) --------
     def to_arrow(self):
+        pa = require_pyarrow("Int64Vector.to_arrow()")
         cdef size_t nbytes = buf_length(self.ptr) * buf_itemsize(self.ptr)
         addr = <intptr_t> self.ptr.data
-        data_buf = pyarrow.foreign_buffer(addr, nbytes, base=self)
+        data_buf = pa.foreign_buffer(addr, nbytes, base=self)
 
         buffers = []
         if self.ptr.null_bitmap != NULL:
-            buffers.append(pyarrow.foreign_buffer(<intptr_t> self.ptr.null_bitmap, (self.ptr.length + 7) // 8, base=self))
+            buffers.append(pa.foreign_buffer(<intptr_t> self.ptr.null_bitmap, (self.ptr.length + 7) // 8, base=self))
         else:
             buffers.append(None)
 
         buffers.append(data_buf)
 
-        return pyarrow.Array.from_buffers(pyarrow.int64(), buf_length(self.ptr), buffers)
+        return pa.Array.from_buffers(pa.int64(), buf_length(self.ptr), buffers)
 
     # -------- Example op --------
     cpdef Int64Vector take(self, int32_t[::1] indices):
