@@ -2,7 +2,11 @@ lint:
 	python -m pip install --quiet --upgrade pycln isort ruff yamllint cython-lint
 #	python -m yamllint .
 	python fix_cython_whitespace.py
-	cython-lint draken/**/*.pyx
+	cython-lint draken/compiled/*.pyx
+	cython-lint draken/core/*.pyx
+	cython-lint draken/evaluators/*.pyx
+	cython-lint draken/morsels/*.pyx
+	cython-lint draken/vectors/*.pyx
 	python -m ruff check --fix --exit-zero
 	python -m pycln .
 	python -m isort .

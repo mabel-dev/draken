@@ -64,7 +64,8 @@ cdef class BoolVector(Vector):
     def dtype(self):
         return buf_dtype(self.ptr)
 
-    def __getitem__(self, Py_ssize_t i) -> bool:
+    def __getitem__(self, Py_ssize_t i):
+        """Return the value at index i, or None if null."""
         cdef DrakenFixedBuffer* ptr = self.ptr
         if i < 0 or i >= ptr.length:
             raise IndexError("Index out of bounds")
@@ -73,7 +74,7 @@ cdef class BoolVector(Vector):
             byte = ptr.null_bitmap[i >> 3]
             bit = (byte >> (i & 7)) & 1
             if not bit:
-                raise ValueError(f"Value at index {i} is null")
+                return None
         # extract bit
         cdef uint8_t val_byte = (<uint8_t*>ptr.data)[i >> 3]
         return bool((val_byte >> (i & 7)) & 1)

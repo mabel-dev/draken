@@ -79,6 +79,8 @@ _PYX_TEMPLATE = r"""
 # cython: wraparound=False
 # cython: boundscheck=False
 
+# This file is auto-generated. Do not edit directly.
+
 from libc.stdint cimport uint8_t, intptr_t
 from libc.stdlib cimport malloc, free
 

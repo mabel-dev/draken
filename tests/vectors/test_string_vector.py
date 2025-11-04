@@ -21,7 +21,7 @@ def test_string_vector_builder_appends_and_nulls():
     assert vec.byte_length(1) == 2
     assert vec.byte_length(2) == 0
 
-    assert list(vec) == [b"a", b"bc", b""]
+    assert list(vec) == [b"a", b"bc", None]
 
     data_buffer, offsets_buffer, null_bitmap = vec.buffers()
     assert bytes(data_buffer) == b"abc"
@@ -91,7 +91,7 @@ def test_builder_set_and_set_null():
     builder.set_view(2, array("B", b"bc"))
 
     vec = builder.finish()
-    assert list(vec) == [b"a", b"", b"bc"]
+    assert list(vec) == [b"a", None, b"bc"]
 
     _, _, null_bitmap = vec.buffers()
     assert null_bitmap is not None

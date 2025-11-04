@@ -60,7 +60,8 @@ cdef class Float64Vector(Vector):
     def dtype(self):
         return buf_dtype(self.ptr)
 
-    def __getitem__(self, Py_ssize_t i) -> float:
+    def __getitem__(self, Py_ssize_t i):
+        """Return the value at index i, or None if null."""
         cdef DrakenFixedBuffer* ptr = self.ptr
         cdef double* data = <double*> ptr.data
         if i < 0 or i >= ptr.length:
@@ -69,7 +70,7 @@ cdef class Float64Vector(Vector):
             byte = ptr.null_bitmap[i >> 3]
             bit = (byte >> (i & 7)) & 1
             if not bit:
-                raise ValueError(f"Value at index {i} is null")
+                return None
         return data[i]
 
     # -------- Interop (owned -> Arrow) --------
