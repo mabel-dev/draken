@@ -124,6 +124,23 @@ cdef class StringVector(Vector):
     def __iter__(self):
         return _StringVectorIterator(self)
 
+    cpdef _StringVectorCIterator c_iter(self):
+        """
+        Return a C-level iterator for high-performance kernel operations.
+
+        The C iterator yields StringElement structs with (ptr, length, is_null)
+        and can be used in nogil contexts for maximum performance.
+
+        Example:
+            cdef _StringVectorCIterator it = vec.c_iter()
+            cdef StringElement elem
+            while it.next(&elem):
+                if not elem.is_null:
+                    # Process elem.ptr, elem.length
+                    ...
+        """
+        return _StringVectorCIterator(self)
+
     cpdef Py_ssize_t byte_length(self, Py_ssize_t i):
         """Return the number of bytes for row ``i`` without materializing the value."""
         cdef DrakenVarBuffer* ptr = self.ptr
@@ -357,6 +374,13 @@ cdef class StringVector(Vector):
         return f"<StringVector len={self.ptr.length} values={vals}>"
 
 
+# Lightweight struct for C-level iteration over string vector elements
+cdef struct StringElement:
+    char* ptr
+    Py_ssize_t length
+    bint is_null
+
+
 cdef class _StringVectorIterator:
     """Efficient iterator that avoids repeated attribute lookups during scans."""
 
@@ -400,6 +424,92 @@ cdef class _StringVectorIterator:
         return PyBytes_FromStringAndSize(self._base + start, nbytes)
 
 
+cdef class _StringVectorCIterator:
+    """
+    C-level iterator over StringVector that yields lightweight structs.
+
+    Designed for internal kernels that need minimal overhead access to
+    string elements without Python object creation.
+
+    Usage from Cython:
+        cdef _StringVectorCIterator it = vec.c_iter()
+        cdef StringElement elem
+        while it.next(&elem):
+            if not elem.is_null:
+                # Use elem.ptr and elem.length
+                process_string(elem.ptr, elem.length)
+    """
+
+    def __cinit__(self, StringVector vec):
+        self._vec = vec
+        self._ptr = vec.ptr
+        self._pos = 0
+        self._length = self._ptr.length
+        self._base = <char*>self._ptr.data
+        self._nulls = self._ptr.null_bitmap
+
+    cdef bint next(self, StringElement* elem) nogil:
+        """
+        Advance to next element and populate elem struct.
+        Returns True if element was retrieved, False if iteration complete.
+
+        This method is nogil-compatible for use in tight loops.
+        """
+        if self._pos >= self._length:
+            return False
+
+        cdef Py_ssize_t i = self._pos
+        cdef int32_t start, end
+
+        # Check for null
+        if self._nulls != NULL and ((self._nulls[i >> 3] >> (i & 7)) & 1) == 0:
+            elem.ptr = NULL
+            elem.length = 0
+            elem.is_null = True
+        else:
+            start = self._ptr.offsets[i]
+            end = self._ptr.offsets[i + 1]
+            elem.ptr = self._base + start
+            elem.length = end - start
+            elem.is_null = False
+
+        self._pos += 1
+        return True
+
+    cpdef void reset(self):
+        """Reset iterator to beginning."""
+        self._pos = 0
+
+    @property
+    def position(self):
+        """Current position in iteration."""
+        return self._pos
+
+    cpdef StringElement get_at(self, Py_ssize_t index):
+        """
+        Get element at specific index without advancing iterator.
+        Useful for random access patterns.
+        """
+        if index < 0 or index >= self._length:
+            raise IndexError("Index out of range")
+
+        cdef StringElement elem
+        cdef int32_t start, end
+
+        if self._nulls != NULL and ((self._nulls[index >> 3] >> (index & 7)) & 1) == 0:
+            elem.ptr = NULL
+            elem.length = 0
+            elem.is_null = True
+        else:
+            start = self._ptr.offsets[index]
+            end = self._ptr.offsets[index + 1]
+            elem.ptr = self._base + start
+            elem.length = end - start
+            elem.is_null = False
+
+        return elem
+
+
 cdef class _StringVectorView:
     """Zero-copy helper exposing raw pointer/length access."""
 
@@ -429,17 +539,6 @@ cdef class _StringVectorView:
 
 cdef class StringVectorBuilder:
     """Utility for constructing ``StringVector`` instances with controlled preallocation."""
-
-    cdef StringVector _vec
-    cdef DrakenVarBuffer* _ptr
-    cdef Py_ssize_t _length
-    cdef Py_ssize_t _next_index
-    cdef Py_ssize_t _bytes_cap
-    cdef Py_ssize_t _offset
-    cdef bint _finished
-    cdef bint _resizable
-    cdef bint _strict_capacity
-    cdef bint _mask_user_provided
 
     def __cinit__(self, Py_ssize_t length, Py_ssize_t bytes_capacity,
                   bint resizable=False, bint strict_capacity=False):
@@ -502,6 +601,23 @@ cdef class StringVectorBuilder:
         """Append a value at the next position, copying bytes into the backing buffer."""
         self._append_with_ptr(self._next_index, PyBytes_AS_STRING(value), len(value))
 
+    cpdef void append_bytes(self, const char* ptr, Py_ssize_t length):
+        """
+        Append from raw pointer + length without Python bytes intermediary.
+
+        Zero-copy-friendly: avoids creating a Python bytes object, though
+        data is still copied into the builder's internal buffer.
+
+        Args:
+            ptr: Pointer to byte data (can be NULL if length is 0)
+            length: Number of bytes to copy
+
+        Example:
+            cdef char* data = get_string_data()
+            builder.append_bytes(data, strlen(data))
+        """
+        self._append_with_ptr(self._next_index, ptr, length)
+
     cpdef void append_view(self, const uint8_t[::1] value):
         """Append from a read-only memoryview without creating an intermediate bytes object."""
         cdef Py_ssize_t size = value.shape[0]
@@ -519,6 +635,17 @@ cdef class StringVectorBuilder:
     cpdef void set(self, Py_ssize_t index, bytes value):
         """Set ``index`` to ``value`` (must be the next slot)."""
         self._append_with_ptr(index, PyBytes_AS_STRING(value), len(value))
+
+    cpdef void set_bytes(self, Py_ssize_t index, const char* ptr, Py_ssize_t length):
+        """
+        Set value at index from raw pointer + length.
+
+        Args:
+            index: Index to set (must be the next available slot)
+            ptr: Pointer to byte data (can be NULL if length is 0)
+            length: Number of bytes to copy
+        """
+        self._append_with_ptr(index, ptr, length)
 
     cpdef void set_view(self, Py_ssize_t index, const uint8_t[::1] value):
         cdef Py_ssize_t size = value.shape[0]
