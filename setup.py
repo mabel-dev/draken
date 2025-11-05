@@ -41,6 +41,8 @@ if not SHOULD_BUILD_EXTENSIONS:
 if SHOULD_BUILD_EXTENSIONS:
 
     LIBRARY = "draken"
+    machine = platform.machine().lower()
+    system = platform.system().lower()
     CPP_COMPILE_FLAGS = ["-O3"]
     C_COMPILE_FLAGS = ["-O3"]
     if is_mac():
@@ -48,11 +50,12 @@ if SHOULD_BUILD_EXTENSIONS:
     elif is_win():
         CPP_COMPILE_FLAGS += ["/std:c++17"]
     else:
-        # Target AVX2-era CPUs (2013+) without relying on -march=native or x86-64-v3, which older GCC
-        # releases do not recognise. Explicitly request AVX2 features while avoiding AVX-512.
-        avx2_flags = ["-mavx2", "-mfma", "-mf16c"]
-        CPP_COMPILE_FLAGS += ["-std=c++17", "-fvisibility=default"] + avx2_flags
-        C_COMPILE_FLAGS += ["-fvisibility=default"] + avx2_flags
+        # Default to portable flags, then layer in AVX2 where the CPU family supports it.
+        CPP_COMPILE_FLAGS += ["-std=c++17", "-fvisibility=default"]
+        C_COMPILE_FLAGS += ["-fvisibility=default"]
+        if "x86" in machine or "amd64" in machine:
+            CPP_COMPILE_FLAGS.append("-mavx2")
+            C_COMPILE_FLAGS.append("-mavx2")
 
     include_dirs = []
     # Get the C++ include directory
@@ -192,10 +195,7 @@ if SHOULD_BUILD_EXTENSIONS:
     ]
 
     # Add SIMD support flags
-    # x86-64-v3 (set above) includes AVX2, BMI1, BMI2, F16C, FMA, LZCNT, MOVBE, XSAVE
-    # This is a good baseline for modern CPUs (2013+) while avoiding AVX-512
-    machine = platform.machine().lower()
-    system = platform.system().lower()
+    # AVX2 flags are handled above for x86/AMD64 targets; add ARM NEON support where reasonable.
     if machine.startswith("arm") and not machine.startswith("aarch64") and system != "darwin":
         # ARM32 NEON is generally safe as baseline
         CPP_COMPILE_FLAGS.append("-mfpu=neon")
