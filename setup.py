@@ -48,8 +48,10 @@ if SHOULD_BUILD_EXTENSIONS:
     elif is_win():
         CPP_COMPILE_FLAGS += ["/std:c++17"]
     else:
-        CPP_COMPILE_FLAGS += ["-std=c++17", "-march=native", "-fvisibility=default"]
-        C_COMPILE_FLAGS += ["-march=native", "-fvisibility=default"]
+        # Use x86-64-v3 (AVX2) as baseline - widely supported since 2013
+        # Avoid -march=native to prevent AVX-512 and newer CPU-specific instructions
+        CPP_COMPILE_FLAGS += ["-std=c++17", "-march=x86-64-v3", "-fvisibility=default"]
+        C_COMPILE_FLAGS += ["-march=x86-64-v3", "-fvisibility=default"]
 
     include_dirs = []
     # Get the C++ include directory
@@ -189,13 +191,14 @@ if SHOULD_BUILD_EXTENSIONS:
     ]
 
     # Add SIMD support flags
+    # x86-64-v3 (set above) includes AVX2, BMI1, BMI2, F16C, FMA, LZCNT, MOVBE, XSAVE
+    # This is a good baseline for modern CPUs (2013+) while avoiding AVX-512
     machine = platform.machine().lower()
     system = platform.system().lower()
     if machine.startswith("arm") and not machine.startswith("aarch64"):
         if system != "darwin":
+            # ARM32 NEON is generally safe as baseline
             CPP_COMPILE_FLAGS.append("-mfpu=neon")
-    elif "x86" in machine or "amd64" in machine:
-        CPP_COMPILE_FLAGS.append("-mavx2")
 
     setup_config = {
         "name": LIBRARY,
